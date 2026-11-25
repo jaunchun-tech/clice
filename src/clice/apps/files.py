@@ -42,7 +42,7 @@ class FilesApp(Vertical):
 
     def compose(self) -> ComposeResult:
         with Horizontal(classes="toolbar"):
-            yield Static("[b #eab308][F] Clice Files[/b #eab308]", classes="app-title")
+            yield Static("[b #eab308]\\[F] Clice Files[/b #eab308]", classes="app-title")
             yield Input(value=str(self.current_dir), placeholder="Enter path to cd...", id="files-cd-input")
             yield Button("Go / cd", variant="primary", id="files-go")
             yield Button("Up (←)", id="files-up")

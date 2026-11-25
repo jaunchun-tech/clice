@@ -51,7 +51,7 @@ class PresentScreen(Screen[None]):
     def _render_slide(self) -> None:
         s = self.slides[self.index]
         accent, _ = SLIDE_THEMES.get(self.theme_name, ("#fb923c", "#0f172a"))
-        self.query_one("#present-title", Static).update(f"[b {accent}][P]  {s.title}[/b {accent}]")
+        self.query_one("#present-title", Static).update(f"[b {accent}]\\[P]  {s.title}[/b {accent}]")
         self.query_one("#present-body", Markdown).update(s.body or "_(empty slide)_")
         note_hint = f"  •  Notes: {s.notes[:45]}" if s.notes else ""
         self.query_one("#present-footer", Static).update(
@@ -106,7 +106,7 @@ class SlidesApp(Vertical):
         # Office-Style Top Ribbon
         with Vertical(classes="ribbon-container"):
             with Horizontal(classes="ribbon-tabs"):
-                yield Static("[b #f97316][P] Clice Slides[/b #f97316]", classes="app-title")
+                yield Static("[b #f97316]\\[P] Clice Slides[/b #f97316]", classes="app-title")
                 yield Button("File", id="ptab-file")
                 yield Button("Slides", id="ptab-slides", classes="-active-tab")
                 yield Button("Insert", id="ptab-insert")

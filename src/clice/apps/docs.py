@@ -57,7 +57,7 @@ class DocsApp(Vertical):
         # Office-Style Top Ribbon
         with Vertical(classes="ribbon-container"):
             with Horizontal(classes="ribbon-tabs"):
-                yield Static("[b #3b82f6][W] Clice Docs[/b #3b82f6]", classes="app-title")
+                yield Static("[b #3b82f6]\\[W] Clice Docs[/b #3b82f6]", classes="app-title")
                 yield Button("File", id="rtab-file")
                 yield Button("Format", id="rtab-format", classes="-active-tab")
                 yield Button("Insert", id="rtab-insert")
