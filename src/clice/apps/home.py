@@ -8,7 +8,7 @@ from pathlib import Path
 import psutil
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Grid, Horizontal, Vertical
+from textual.containers import Grid, Horizontal, Vertical, VerticalScroll
 from textual.events import Click
 from textual.widgets import Button, Static
 
@@ -76,8 +76,8 @@ class AppTile(Vertical):
         self.action_launch()
 
 
-class HomeApp(Vertical):
-    """Main Menu with 3-column grid of clickable & arrow-navigable app rectangles."""
+class HomeApp(VerticalScroll):
+    """Main Menu with scrollable 3-column grid of clickable & arrow-navigable app rectangles."""
 
     BINDINGS = [
         Binding("left", "move_tile(-1)", "Left"),
@@ -148,7 +148,9 @@ class HomeApp(Vertical):
         focused = self.app.focused
         cur = focused.tile_index if isinstance(focused, AppTile) else 0
         nxt = max(0, min(self._tile_count - 1, cur + delta))
-        self.query_one(f"#tile-{nxt}", AppTile).focus()
+        tile = self.query_one(f"#tile-{nxt}", AppTile)
+        tile.focus()
+        tile.scroll_visible()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         bid = event.button.id or ""
