@@ -478,4 +478,49 @@ FilePickerModal {
     width: 1fr;
     margin-right: 1;
 }
+
+/* Spotlight (Ctrl+K) & Help Modal (F10) */
+SpotlightModal, HelpModal {
+    align: center middle;
+}
+
+#spotlight-dialog {
+    width: 72%;
+    height: 70%;
+    background: $surface;
+    border: double $accent;
+    padding: 1 2;
+}
+
+#help-dialog {
+    width: 78%;
+    height: 82%;
+    background: $surface;
+    border: double $primary;
+    padding: 1 2;
+}
+
+#sp-header {
+    height: 2;
+    border-bottom: solid $primary;
+    margin-bottom: 1;
+}
+
+#sp-input {
+    margin-bottom: 1;
+}
+
+#sp-list, #help-scroll {
+    height: 1fr;
+    margin-bottom: 1;
+}
+
+#top-clock {
+    width: auto;
+    padding: 0 2;
+    color: $accent;
+    text-style: bold;
+    content-align: center middle;
+    height: 1;
+}
 """

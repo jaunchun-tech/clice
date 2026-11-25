@@ -28,6 +28,8 @@ MAIN_MENU_APPS: list[tuple[str, str, str, str, str, str]] = [
     ("sql", "[b #38bdf8]\\[DB][/b #38bdf8]", "SQLite Studio", "Browse Tables • Run SQL\nExport Query Results to CSV", "", "tile-word"),
     ("http", "[b #10b981]\\[API][/b #10b981]", "HTTP / API Client", "GET/POST/PUT/DELETE • JSON\nHeaders & Response Inspector", "", "tile-excel"),
     ("runner", "[b #22d3ee]\\[$][/b #22d3ee]", "Command Runner", "Run Shell Commands Live\nSave Reusable Dev Snippets", "", "tile-calc"),
+    ("diff", "[b #f43f5e]\\[≠][/b #f43f5e]", "Diff Viewer", "Side-by-Side Text/Code Diff\nColorized Unified Diff Output", "", "tile-notes"),
+    ("secrets", "[b #a78bfa]\\[*][/b #a78bfa]", "Secrets & Passwords", "CSPRNG Passwords & Passphrases\nAPI Keys & Entropy Meter", "", "tile-dev"),
     ("sysmon", "[b #ef4444]\\[~][/b #ef4444]", "System Monitor", "Live CPU • RAM • Disk Bars\nTop Processes (psutil)", "", "tile-sys"),
     ("plugins", "[b #8b5cf6]\\[+][/b #8b5cf6]", "Plugins & Market", "GitHub Auto-Pull Marketplace\nLive README Preview & Install", "", "tile-plugins"),
 ]

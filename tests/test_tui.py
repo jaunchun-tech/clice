@@ -27,6 +27,8 @@ async def test_clice_switches_all_built_in_apps():
             "sql",
             "http",
             "runner",
+            "diff",
+            "secrets",
             "sysmon",
             "plugins",
             "home",
