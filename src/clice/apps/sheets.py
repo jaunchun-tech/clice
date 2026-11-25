@@ -98,6 +98,8 @@ class SheetsApp(Vertical):
 
             with Horizontal(classes="ribbon-tools", id="xbar-view"):
                 yield Button("Toggle Formulas/Values", variant="primary", id="view-toggle-fx")
+                yield Button("ASCII Bar Chart", variant="success", id="view-chart")
+                yield Button("Auto-Sum Col", id="view-autosum")
                 yield Button("Clear Sheet", variant="error", id="sheets-clear")
 
         with Horizontal(id="sheets-formula-bar"):
@@ -366,6 +368,28 @@ class SheetsApp(Vertical):
             self.show_formulas = not self.show_formulas
             self._rebuild_table()
             self._update_status("Showing Formulas" if self.show_formulas else "Showing Values")
+        elif bid == "view-chart":
+            col = self.cursor_col
+            vals: list[tuple[str, float]] = []
+            for r in range(1, self.num_rows):
+                raw_v = evaluate_cell(self.grid[r][col], self.grid)
+                try:
+                    num = float(raw_v)
+                    label = self.grid[r][0] or f"Row {r + 1}"
+                    vals.append((label[:12], num))
+                except ValueError:
+                    pass
+            if not vals:
+                self.notify("No numeric values in current column to chart", severity="warning")
+            else:
+                mx = max(abs(v) for _, v in vals) or 1.0
+                bars = [f"{lbl:<12} | {'█' * max(1, int(abs(v) / mx * 20))} {v:g}" for lbl, v in vals[:10]]
+                self.notify(f"Chart ({index_to_col_letters(col)}):\n" + "\n".join(bars), timeout=8)
+        elif bid == "view-autosum":
+            col_let = index_to_col_letters(self.cursor_col)
+            self.grid[self.cursor_row][self.cursor_col] = f"=SUM({col_let}2:{col_let}{max(2, self.cursor_row)})"
+            self._rebuild_table()
+            self._sync_formula_bar()
         elif bid == "sheets-clear":
             self.grid = [["" for _ in range(self.num_cols)] for _ in range(self.num_rows)]
             self._rebuild_table()

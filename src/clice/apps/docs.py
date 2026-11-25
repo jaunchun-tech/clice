@@ -72,6 +72,9 @@ class DocsApp(Vertical):
                 yield Button("Open... (^O)", variant="primary", id="doc-open")
                 yield Button("Save (^S)", variant="success", id="doc-save")
                 yield Button("Save As...", id="doc-save-as")
+                yield Button("Export HTML", variant="warning", id="doc-export-html")
+                yield Button("Tpl: Meeting", id="tpl-meeting")
+                yield Button("Tpl: README", id="tpl-readme")
 
             with Horizontal(classes="ribbon-tools", id="rbar-format"):
                 yield Button("H1", id="fmt-h1")
@@ -96,8 +99,12 @@ class DocsApp(Vertical):
             with Horizontal(classes="ribbon-tools", id="rbar-tools"):
                 yield Button("Find & Replace (^F)", variant="primary", id="tool-find")
                 yield Button("Toggle Preview", id="tool-preview")
-                yield Button("UPPERCASE", id="tool-upper")
-                yield Button("Word Stats", id="tool-stats")
+                yield Button("Undo (^Z)", id="tool-undo")
+                yield Button("Redo (^Y)", id="tool-redo")
+                yield Button("UPPER", id="tool-upper")
+                yield Button("lower", id="tool-lower")
+                yield Button("Title Case", id="tool-title")
+                yield Button("Outline", id="tool-outline")
 
         # Optional Find & Replace Bar
         with Horizontal(classes="find-bar", id="docs-find-bar"):
@@ -252,6 +259,24 @@ class DocsApp(Vertical):
             self.action_save_doc()
         elif bid == "doc-save-as":
             self._open_save_as()
+        elif bid == "doc-export-html":
+            base = self.current_file.with_suffix(".html") if self.current_file else Path.cwd() / "document.html"
+            text = self.query_one("#docs-editor", TextArea).text
+            escaped = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            html = f"<!doctype html><html><head><meta charset='utf-8'><title>{base.stem}</title><style>body{{font-family:system-ui,sans-serif;max-width:800px;margin:2rem auto;padding:0 1rem;line-height:1.6}}pre{{white-space:pre-wrap}}</style></head><body><pre>{escaped}</pre></body></html>"
+            base.write_text(html, encoding="utf-8")
+            self.notify(f"Exported HTML → {base.name}", timeout=3)
+        elif bid == "tpl-meeting":
+            self.query_one("#docs-editor", TextArea).text = (
+                f"# Meeting Notes — {datetime.now().strftime('%Y-%m-%d')}\n\n"
+                "## Attendees\n- \n\n## Agenda\n1. \n\n## Action Items\n- [ ] \n"
+            )
+            self._update_stats()
+        elif bid == "tpl-readme":
+            self.query_one("#docs-editor", TextArea).text = (
+                "# Project Name\n\nShort description.\n\n## Installation\n```bash\npip install .\n```\n\n## Usage\n- \n"
+            )
+            self._update_stats()
         elif bid == "fmt-h1":
             self.action_fmt_h1()
         elif bid == "fmt-h2":
@@ -289,11 +314,22 @@ class DocsApp(Vertical):
         elif bid == "tool-preview":
             self._show_preview = not self._show_preview
             self.query_one("#docs-preview-scroll", VerticalScroll).display = self._show_preview
+        elif bid == "tool-undo":
+            self.query_one("#docs-editor", TextArea).undo()
+        elif bid == "tool-redo":
+            self.query_one("#docs-editor", TextArea).redo()
         elif bid == "tool-upper":
             ed = self.query_one("#docs-editor", TextArea)
             ed.text = ed.text.upper()
-        elif bid == "tool-stats":
-            self.notify(str(self.query_one("#docs-status", Static).render()), timeout=4)
+        elif bid == "tool-lower":
+            ed = self.query_one("#docs-editor", TextArea)
+            ed.text = ed.text.lower()
+        elif bid == "tool-title":
+            ed = self.query_one("#docs-editor", TextArea)
+            ed.text = ed.text.title()
+        elif bid == "tool-outline":
+            lines = [ln.strip() for ln in self.query_one("#docs-editor", TextArea).text.splitlines() if ln.strip().startswith("#")]
+            self.notify("Outline:\n" + ("\n".join(lines[:10]) if lines else "(no headings)"), timeout=5)
         elif bid == "docs-replace-all":
             needle = self.query_one("#docs-find-in", Input).value
             repl = self.query_one("#docs-replace-in", Input).value

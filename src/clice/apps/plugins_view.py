@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from textual import work
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical, VerticalScroll
@@ -75,6 +76,42 @@ class PluginsViewApp(Vertical):
     def on_mount(self) -> None:
         self._refresh_installed()
         self.query_one("#plugins-table", DataTable).focus()
+        # Automatically pull latest plugins from GitHub Marketplace in background
+        self._auto_pull_marketplace(DEFAULT_MARKETPLACE_REPO)
+
+    @work(thread=True)
+    def _auto_pull_marketplace(self, repo: str) -> None:
+        try:
+            plugins = list_marketplace_plugins(repo)
+            first_md = ""
+            if plugins:
+                first_md = fetch_marketplace_readme(plugins[0].slug, repo=plugins[0].repo)
+            self.app.call_from_thread(self._apply_marketplace_results, repo, plugins, first_md, None)
+        except Exception as exc:
+            self.app.call_from_thread(self._apply_marketplace_results, repo, [], "", str(exc))
+
+    def _apply_marketplace_results(
+        self,
+        repo: str,
+        plugins: list[MarketplacePluginInfo],
+        first_md: str,
+        error: str | None,
+    ) -> None:
+        status = self.query_one("#plugins-status", Static)
+        if error:
+            status.update(f"Marketplace auto-pull ({repo}): {error}")
+            return
+        self._remote_plugins = plugins
+        table = self.query_one("#mkt-table", DataTable)
+        table.clear(columns=True)
+        table.add_columns("Plugin Slug", "Repository", "Status")
+        installed_dirs = {p.name for p in get_plugins_dir().iterdir() if p.is_dir()} if get_plugins_dir().exists() else set()
+        for info in self._remote_plugins:
+            st = "Installed" if info.slug in installed_dirs else "Available"
+            table.add_row(info.slug, info.repo, st)
+        if first_md:
+            self.query_one("#mkt-readme-view", Markdown).update(first_md)
+        status.update(f"Auto-pulled {len(plugins)} plugin(s) from {repo}")
 
     def _refresh_installed(self) -> None:
         table = self.query_one("#plugins-table", DataTable)

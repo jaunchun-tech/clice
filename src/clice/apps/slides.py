@@ -119,6 +119,7 @@ class SlidesApp(Vertical):
                 yield Button("Open... (^O)", variant="primary", id="slides-open")
                 yield Button("Save (^S)", variant="success", id="slides-save")
                 yield Button("Save As...", id="slides-save-as")
+                yield Button("Export HTML Deck", variant="warning", id="slides-export-html")
 
             with Horizontal(classes="ribbon-tools", id="pbar-slides"):
                 yield Button("+ New Slide (^M)", variant="success", id="slides-add")
@@ -319,6 +320,18 @@ class SlidesApp(Vertical):
             self.action_save_deck()
         elif bid == "slides-save-as":
             self._open_save_as()
+        elif bid == "slides-export-html":
+            base = self.current_file.with_suffix(".html") if self.current_file else Path.cwd() / "presentation.html"
+            sections = "\n".join(
+                f"<section style='min-height:80vh;padding:3rem;border-bottom:2px solid #334155'>"
+                f"<h1 style='color:#fb923c'>{s.title}</h1>"
+                f"<pre style='font-family:system-ui;white-space:pre-wrap;font-size:1.25rem'>{s.body}</pre>"
+                f"</section>"
+                for s in self.slides
+            )
+            html = f"<!doctype html><html><head><meta charset='utf-8'><title>{base.stem}</title></head><body style='background:#0f172a;color:#f8fafc;margin:0;font-family:system-ui'>{sections}</body></html>"
+            base.write_text(html, encoding="utf-8")
+            self.notify(f"Exported HTML Slideshow → {base.name}", timeout=3)
         elif bid == "slides-add":
             self.action_add_slide()
         elif bid == "slides-dup":

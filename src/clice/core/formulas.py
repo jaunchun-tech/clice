@@ -153,6 +153,66 @@ def _build_functions() -> dict[str, Callable[..., Any]]:
     def fn_concat(*args: Any) -> str:
         return "".join(str(x) for x in _flatten_all(args))
 
+    def fn_median(*args: Any) -> float:
+        nums = sorted(_flatten_numbers(args))
+        if not nums:
+            return 0.0
+        mid = len(nums) // 2
+        return nums[mid] if len(nums) % 2 else (nums[mid - 1] + nums[mid]) / 2.0
+
+    def fn_stdev(*args: Any) -> float:
+        nums = _flatten_numbers(args)
+        if len(nums) < 2:
+            return 0.0
+        mean = sum(nums) / len(nums)
+        return math.sqrt(sum((x - mean) ** 2 for x in nums) / (len(nums) - 1))
+
+    def fn_product(*args: Any) -> float:
+        nums = _flatten_numbers(args)
+        res = 1.0
+        for n in nums:
+            res *= n
+        return res if nums else 0.0
+
+    def fn_upper(val: Any) -> str:
+        return str(val).upper()
+
+    def fn_lower(val: Any) -> str:
+        return str(val).lower()
+
+    def fn_trim(val: Any) -> str:
+        return str(val).strip()
+
+    def fn_len(val: Any) -> int:
+        return len(str(val))
+
+    def fn_left(val: Any, n: Any = 1) -> str:
+        return str(val)[: int(n)]
+
+    def fn_right(val: Any, n: Any = 1) -> str:
+        k = int(n)
+        return str(val)[-k:] if k > 0 else ""
+
+    def fn_mod(a: Any, b: Any) -> float:
+        return float(a) % float(b)
+
+    def fn_int(val: Any) -> int:
+        return int(math.floor(float(val)))
+
+    def fn_ceil(val: Any) -> int:
+        return int(math.ceil(float(val)))
+
+    def fn_floor(val: Any) -> int:
+        return int(math.floor(float(val)))
+
+    def fn_today() -> str:
+        from datetime import date
+        return date.today().isoformat()
+
+    def fn_now() -> str:
+        from datetime import datetime
+        return datetime.now().strftime("%Y-%m-%d %H:%M")
+
     return {
         "SUM": fn_sum,
         "AVG": fn_avg,
@@ -167,6 +227,21 @@ def _build_functions() -> dict[str, Callable[..., Any]]:
         "SQRT": fn_sqrt,
         "POWER": fn_power,
         "CONCAT": fn_concat,
+        "MEDIAN": fn_median,
+        "STDEV": fn_stdev,
+        "PRODUCT": fn_product,
+        "UPPER": fn_upper,
+        "LOWER": fn_lower,
+        "TRIM": fn_trim,
+        "LEN": fn_len,
+        "LEFT": fn_left,
+        "RIGHT": fn_right,
+        "MOD": fn_mod,
+        "INT": fn_int,
+        "CEIL": fn_ceil,
+        "FLOOR": fn_floor,
+        "TODAY": fn_today,
+        "NOW": fn_now,
     }
 
 
