@@ -16,26 +16,34 @@ from clice.apps.devtools import DevToolsApp
 from clice.apps.docs import DocsApp
 from clice.apps.files import FilesApp
 from clice.apps.home import HomeApp
+from clice.apps.http_client import HttpClientApp
+from clice.apps.kanban import KanbanApp
 from clice.apps.notes import NotesApp
 from clice.apps.plugins_view import PluginsViewApp
 from clice.apps.sheets import SheetsApp
 from clice.apps.slides import SlidesApp
+from clice.apps.sql_studio import SqlStudioApp
 from clice.apps.sysmon import SysMonApp
+from clice.apps.terminal_runner import CommandRunnerApp
 from clice.core.plugins import PluginRegistry
 from clice.theme import AVAILABLE_THEMES, CLICE_CSS
 
 BUILTIN_NAV: list[tuple[str, str, str, str]] = [
-    ("home", "[b #38bdf8][H][/b #38bdf8]", "Home", "F1"),
-    ("sheets", "[b #22c55e][X][/b #22c55e]", "Sheets (Excel)", "F2"),
-    ("docs", "[b #3b82f6][W][/b #3b82f6]", "Docs (Word)", "F3"),
-    ("slides", "[b #f97316][P][/b #f97316]", "Slides (PPT)", "F4"),
-    ("files", "[b #eab308][F][/b #eab308]", "Files & cd", "F5"),
-    ("devtools", "[b #a855f7][<>][/b #a855f7]", "Coding Utils", "F6"),
-    ("calc", "[b #06b6d4][=][/b #06b6d4]", "Calculator", "F7"),
-    ("notes", "[b #ec4899][✓][/b #ec4899]", "Notes & Tasks", "F8"),
-    ("calendar", "[b #14b8a6][#][/b #14b8a6]", "Calendar", "F9"),
-    ("sysmon", "[b #ef4444][~][/b #ef4444]", "SysMon", ""),
-    ("plugins", "[b #8b5cf6][+][/b #8b5cf6]", "Plugins", ""),
+    ("home", "[b #38bdf8]\\[H][/b #38bdf8]", "Home", "F1"),
+    ("sheets", "[b #22c55e]\\[X][/b #22c55e]", "Sheets (Excel)", "F2"),
+    ("docs", "[b #3b82f6]\\[W][/b #3b82f6]", "Docs (Word)", "F3"),
+    ("slides", "[b #f97316]\\[P][/b #f97316]", "Slides (PPT)", "F4"),
+    ("files", "[b #eab308]\\[F][/b #eab308]", "Files & cd", "F5"),
+    ("devtools", "[b #a855f7]\\[<>][/b #a855f7]", "Coding Utils", "F6"),
+    ("calc", "[b #06b6d4]\\[=][/b #06b6d4]", "Calculator", "F7"),
+    ("notes", "[b #ec4899]\\[✓][/b #ec4899]", "Notes & Tasks", "F8"),
+    ("calendar", "[b #14b8a6]\\[#][/b #14b8a6]", "Calendar", "F9"),
+    ("kanban", "[b #f59e0b]\\[KB][/b #f59e0b]", "Kanban Board", ""),
+    ("sql", "[b #38bdf8]\\[DB][/b #38bdf8]", "SQLite Studio", ""),
+    ("http", "[b #10b981]\\[API][/b #10b981]", "HTTP Client", ""),
+    ("runner", "[b #22d3ee]\\[$][/b #22d3ee]", "Cmd Runner", ""),
+    ("sysmon", "[b #ef4444]\\[~][/b #ef4444]", "SysMon", ""),
+    ("plugins", "[b #8b5cf6]\\[+][/b #8b5cf6]", "Plugins", ""),
 ]
 
 
@@ -174,6 +182,14 @@ class CliceApp(App[str | None]):
             widget = NotesApp()
         elif app_id == "calendar":
             widget = CalendarApp()
+        elif app_id == "kanban":
+            widget = KanbanApp()
+        elif app_id == "sql":
+            widget = SqlStudioApp()
+        elif app_id == "http":
+            widget = HttpClientApp()
+        elif app_id == "runner":
+            widget = CommandRunnerApp()
         elif app_id == "sysmon":
             widget = SysMonApp()
         elif app_id == "plugins":

@@ -65,7 +65,7 @@ class SheetsApp(Vertical):
         # Office-Style Top Ribbon
         with Vertical(classes="ribbon-container"):
             with Horizontal(classes="ribbon-tabs"):
-                yield Static("[b #22c55e][X] Clice Sheets[/b #22c55e]", classes="app-title")
+                yield Static("[b #22c55e]\\[X] Clice Sheets[/b #22c55e]", classes="app-title")
                 yield Button("File", id="xtab-file")
                 yield Button("Formulas", id="xtab-formulas", classes="-active-tab")
                 yield Button("Data", id="xtab-data")

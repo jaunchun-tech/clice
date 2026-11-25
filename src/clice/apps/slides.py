@@ -51,7 +51,7 @@ class PresentScreen(Screen[None]):
     def _render_slide(self) -> None:
         s = self.slides[self.index]
         accent, _ = SLIDE_THEMES.get(self.theme_name, ("#fb923c", "#0f172a"))
-        self.query_one("#present-title", Static).update(f"[b {accent}][P]  {s.title}[/b {accent}]")
+        self.query_one("#present-title", Static).update(f"[b {accent}]\\[P]  {s.title}[/b {accent}]")
         self.query_one("#present-body", Markdown).update(s.body or "_(empty slide)_")
         note_hint = f"  •  Notes: {s.notes[:45]}" if s.notes else ""
         self.query_one("#present-footer", Static).update(
@@ -106,7 +106,7 @@ class SlidesApp(Vertical):
         # Office-Style Top Ribbon
         with Vertical(classes="ribbon-container"):
             with Horizontal(classes="ribbon-tabs"):
-                yield Static("[b #f97316][P] Clice Slides[/b #f97316]", classes="app-title")
+                yield Static("[b #f97316]\\[P] Clice Slides[/b #f97316]", classes="app-title")
                 yield Button("File", id="ptab-file")
                 yield Button("Slides", id="ptab-slides", classes="-active-tab")
                 yield Button("Insert", id="ptab-insert")
@@ -129,16 +129,22 @@ class SlidesApp(Vertical):
                 yield Button("Delete", variant="error", id="slides-del")
 
             with Horizontal(classes="ribbon-tools", id="pbar-insert"):
-                yield Button("Bullets", id="pins-bullets")
+                yield Button("Callout Box", variant="primary", id="pins-callout")
+                yield Button("Flow Diagram", id="pins-flow")
+                yield Button("Progress Bar", id="pins-progress")
+                yield Button("KPI Card", id="pins-kpi")
+                yield Button("Banner", id="pins-banner")
                 yield Button("Table", id="pins-table")
                 yield Button("Code Block", id="pins-code")
-                yield Button("Quote", id="pins-quote")
-                yield Button("Checklist", id="pins-check")
+                yield Button("Bullets", id="pins-bullets")
 
             with Horizontal(classes="ribbon-tools", id="pbar-design"):
                 for tname in SLIDE_THEMES:
                     tid = "ptheme-" + tname.lower().replace(" ", "-")
                     yield Button(tname, id=tid, name=tname)
+                yield Button("Layout: Cover", variant="success", id="playout-cover")
+                yield Button("Layout: 2-Col", variant="success", id="playout-twocol")
+                yield Button("Layout: Timeline", variant="success", id="playout-timeline")
 
             with Horizontal(classes="ribbon-tools", id="pbar-present"):
                 yield Button("▶ Present from Start", variant="warning", id="slides-present-start")
@@ -200,7 +206,10 @@ class SlidesApp(Vertical):
 
     def _update_preview(self) -> None:
         s = self.slides[self.current_index]
-        accent, _ = SLIDE_THEMES.get(self.theme_name, ("#fb923c", "#0f172a"))
+        accent, bg = SLIDE_THEMES.get(self.theme_name, ("#fb923c", "#0f172a"))
+        pane = self.query_one("#slides-preview-pane", Vertical)
+        pane.styles.border = ("double", accent)
+        pane.styles.background = bg
         self.query_one("#slide-preview-title", Static).update(f"[b {accent}]{s.title}[/b {accent}]\n")
         self.query_one("#slide-preview-body", Markdown).update(s.body or "_(empty)_")
 
@@ -363,6 +372,26 @@ class SlidesApp(Vertical):
             self.action_present_mode()
         elif bid == "slides-present-start":
             self.app.push_screen(PresentScreen(self.slides, 0, self.theme_name))
+        elif bid == "pins-callout":
+            self._insert_body("\n```\n╭────────────────────────────────────╮\n│  💡 KEY CALLOUT                    │\n│  Highlight an important takeaway!  │\n╰────────────────────────────────────╯\n```\n")
+        elif bid == "pins-flow":
+            self._insert_body("\n```\n[ Step 1: Plan ] ──▶ [ Step 2: Build ] ──▶ [ Step 3: Ship ]\n```\n")
+        elif bid == "pins-progress":
+            self._insert_body("\n```\nGoal Progress: [████████████████░░░░] 80%\n```\n")
+        elif bid == "pins-kpi":
+            self._insert_body("\n| 🚀 Metric | 📈 Result | 🎯 Target |\n| :---: | :---: | :---: |\n| **Users** | **12,450** | 10,000 |\n| **Uptime** | **99.98%** | 99.9% |\n")
+        elif bid == "pins-banner":
+            self._insert_body("\n```\n══════════════════════════════════════\n        ★  SECTION BANNER  ★          \n══════════════════════════════════════\n```\n")
+        elif bid == "playout-cover":
+            self.slides[self.current_index].title = "Presentation Title"
+            self.slides[self.current_index].body = "```\n══════════════════════════════════════\n        SUBTITLE / TAGLINE            \n══════════════════════════════════════\n```\n\n**Presenter:** Your Name  •  **Date:** Today"
+            self._load_slide_into_editor(self.current_index)
+        elif bid == "playout-twocol":
+            self.slides[self.current_index].body = "| Left Column | Right Column |\n| :--- | :--- |\n| • Point A1 | • Point B1 |\n| • Point A2 | • Point B2 |"
+            self._load_slide_into_editor(self.current_index)
+        elif bid == "playout-timeline":
+            self.slides[self.current_index].body = "```\nQ1 2026 ───●─── Launch MVP\nQ2 2026 ───●─── Marketplace & Plugins\nQ3 2026 ───●─── Team Collaboration\nQ4 2026 ───●─── v1.0 Release\n```"
+            self._load_slide_into_editor(self.current_index)
         elif bid == "pins-bullets":
             self._insert_body("\n- Point 1\n- Point 2\n")
         elif bid == "pins-table":

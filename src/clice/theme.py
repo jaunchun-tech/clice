@@ -136,6 +136,7 @@ Screen {
 }
 
 .toolbar Input {
+    width: 1fr;
     margin-right: 1;
 }
 
