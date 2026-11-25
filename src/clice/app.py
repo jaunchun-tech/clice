@@ -30,6 +30,7 @@ from clice.apps.sysmon import SysMonApp
 from clice.apps.terminal_runner import CommandRunnerApp
 from clice.core.config import load_json, save_json
 from clice.core.help_modal import HelpModal
+from clice.core.intro import IntroSplashScreen
 from clice.core.plugins import PluginRegistry
 from clice.core.spotlight import SpotlightModal, build_spotlight_entries
 from clice.theme import AVAILABLE_THEMES, CLICE_CSS
@@ -86,12 +87,14 @@ class CliceApp(App[str | None]):
         initial_file: Path | None = None,
         extra_plugin_dirs: list[Path] | None = None,
         cd_file: Path | None = None,
+        show_intro: bool = True,
     ) -> None:
         super().__init__()
         self.initial_app = initial_app
         self.initial_file = initial_file
         self.extra_plugin_dirs = extra_plugin_dirs or []
         self.cd_file = cd_file
+        self.show_intro = show_intro
         self.current_app_id = initial_app
         self._theme_idx = 0
         self._nav_ids: list[str] = []
@@ -129,6 +132,8 @@ class CliceApp(App[str | None]):
             self.open_file_in_appropriate_app(self.initial_file)
         else:
             self.switch_app(self.initial_app)
+        if self.show_intro:
+            self.push_screen(IntroSplashScreen())
 
     def _tick_clock(self) -> None:
         self.query_one("#top-clock", Static).update(datetime.now().strftime("%H:%M"))

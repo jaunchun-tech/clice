@@ -85,6 +85,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Print shell integration snippet for easy terminal `cd` via `clice-cd`",
     )
+    parser.add_argument(
+        "--no-intro",
+        action="store_true",
+        help="Skip the animated intro splash screen on startup",
+    )
     parser.add_argument("-v", "--version", action="version", version=f"clice {__version__}")
     return parser
 
@@ -105,6 +110,7 @@ def main(argv: list[str] | None = None) -> int:
         initial_file=initial_file,
         extra_plugin_dirs=args.plugins_dir,
         cd_file=args.cd_file,
+        show_intro=not args.no_intro,
     )
     app.run()
     return 0
