@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 
 from textual.app import App, ComposeResult
@@ -13,6 +14,7 @@ from clice import __version__
 from clice.apps.calc import CalcApp
 from clice.apps.calendar_app import CalendarApp
 from clice.apps.devtools import DevToolsApp
+from clice.apps.diff_viewer import DiffViewerApp
 from clice.apps.docs import DocsApp
 from clice.apps.files import FilesApp
 from clice.apps.home import HomeApp
@@ -20,12 +22,16 @@ from clice.apps.http_client import HttpClientApp
 from clice.apps.kanban import KanbanApp
 from clice.apps.notes import NotesApp
 from clice.apps.plugins_view import PluginsViewApp
+from clice.apps.secrets_tool import SecretsToolApp
 from clice.apps.sheets import SheetsApp
 from clice.apps.slides import SlidesApp
 from clice.apps.sql_studio import SqlStudioApp
 from clice.apps.sysmon import SysMonApp
 from clice.apps.terminal_runner import CommandRunnerApp
+from clice.core.config import load_json, save_json
+from clice.core.help_modal import HelpModal
 from clice.core.plugins import PluginRegistry
+from clice.core.spotlight import SpotlightModal, build_spotlight_entries
 from clice.theme import AVAILABLE_THEMES, CLICE_CSS
 
 BUILTIN_NAV: list[tuple[str, str, str, str]] = [
@@ -42,6 +48,8 @@ BUILTIN_NAV: list[tuple[str, str, str, str]] = [
     ("sql", "[b #38bdf8]\\[DB][/b #38bdf8]", "SQLite Studio", ""),
     ("http", "[b #10b981]\\[API][/b #10b981]", "HTTP Client", ""),
     ("runner", "[b #22d3ee]\\[$][/b #22d3ee]", "Cmd Runner", ""),
+    ("diff", "[b #f43f5e]\\[≠][/b #f43f5e]", "Diff Viewer", ""),
+    ("secrets", "[b #a78bfa]\\[*][/b #a78bfa]", "Secrets", ""),
     ("sysmon", "[b #ef4444]\\[~][/b #ef4444]", "SysMon", ""),
     ("plugins", "[b #8b5cf6]\\[+][/b #8b5cf6]", "Plugins", ""),
 ]
@@ -56,7 +64,9 @@ class CliceApp(App[str | None]):
 
     BINDINGS = [
         Binding("ctrl+q", "quit", "Quit"),
+        Binding("ctrl+k", "open_spotlight", "Spotlight"),
         Binding("ctrl+b", "focus_sidebar", "Sidebar"),
+        Binding("ctrl+backslash", "toggle_sidebar", "Hide Bar"),
         Binding("ctrl+t", "cycle_theme", "Theme"),
         Binding("f1", "go_app('home')", "Home"),
         Binding("f2", "go_app('sheets')", "Sheets"),
@@ -67,6 +77,7 @@ class CliceApp(App[str | None]):
         Binding("f7", "go_app('calc')", "Calc"),
         Binding("f8", "go_app('notes')", "Notes"),
         Binding("f9", "go_app('calendar')", "Cal"),
+        Binding("f10", "open_help", "Help"),
     ]
 
     def __init__(
@@ -91,8 +102,10 @@ class CliceApp(App[str | None]):
         with Horizontal(id="top-bar"):
             yield Static(f"◆ CLICE v{__version__}", id="brand-badge")
             yield Static(f"▸ {Path.cwd()}", id="top-cwd")
+            yield Static(datetime.now().strftime("%H:%M"), id="top-clock")
             with Horizontal(id="top-actions"):
-                yield Button("Sidebar (^B)", id="top-sidebar")
+                yield Button("Search (^K)", variant="primary", id="top-spotlight")
+                yield Button("Help (F10)", id="top-help")
                 yield Button("Theme (^T)", id="top-theme")
                 yield Button("Quit (^Q)", variant="error", id="top-quit")
 
@@ -105,12 +118,20 @@ class CliceApp(App[str | None]):
         yield Footer()
 
     def on_mount(self) -> None:
+        saved = load_json("settings.json", {})
+        saved_theme = saved.get("theme")
+        if saved_theme in AVAILABLE_THEMES:
+            self._theme_idx = AVAILABLE_THEMES.index(saved_theme)
         self.theme = AVAILABLE_THEMES[self._theme_idx]
         self._populate_sidebar()
+        self.set_interval(30.0, self._tick_clock)
         if self.initial_file and self.initial_file.exists():
             self.open_file_in_appropriate_app(self.initial_file)
         else:
             self.switch_app(self.initial_app)
+
+    def _tick_clock(self) -> None:
+        self.query_one("#top-clock", Static).update(datetime.now().strftime("%H:%M"))
 
     def _populate_sidebar(self) -> None:
         lv = self.query_one("#sidebar-list", ListView)
@@ -190,6 +211,10 @@ class CliceApp(App[str | None]):
             widget = HttpClientApp()
         elif app_id == "runner":
             widget = CommandRunnerApp()
+        elif app_id == "diff":
+            widget = DiffViewerApp()
+        elif app_id == "secrets":
+            widget = SecretsToolApp()
         elif app_id == "sysmon":
             widget = SysMonApp()
         elif app_id == "plugins":
@@ -212,7 +237,33 @@ class CliceApp(App[str | None]):
                 self.switch_app(self._nav_ids[idx])
 
     def action_focus_sidebar(self) -> None:
+        sidebar = self.query_one("#sidebar", Vertical)
+        sidebar.display = True
         self.query_one("#sidebar-list", ListView).focus()
+
+    def action_toggle_sidebar(self) -> None:
+        sidebar = self.query_one("#sidebar", Vertical)
+        sidebar.display = not sidebar.display
+
+    def action_open_help(self) -> None:
+        self.push_screen(HelpModal())
+
+    def action_open_spotlight(self) -> None:
+        nav_items = [(app_id, label) for app_id, _, label, _ in BUILTIN_NAV]
+        for lp in self.plugin_registry.loaded:
+            nav_items.append((lp.plugin.id, f"{lp.plugin.name} (Plugin)"))
+        entries = build_spotlight_entries(nav_items)
+
+        def _on_pick(res: tuple[str, str] | None) -> None:
+            if res is None:
+                return
+            kind, target = res
+            if kind == "app":
+                self.switch_app(target)
+            elif kind == "file":
+                self.open_file_in_appropriate_app(Path(target))
+
+        self.push_screen(SpotlightModal(entries), _on_pick)
 
     def action_go_app(self, app_id: str) -> None:
         self.switch_app(app_id)
@@ -220,13 +271,16 @@ class CliceApp(App[str | None]):
     def action_cycle_theme(self) -> None:
         self._theme_idx = (self._theme_idx + 1) % len(AVAILABLE_THEMES)
         self.theme = AVAILABLE_THEMES[self._theme_idx]
-        self.notify(f"Theme: {self.theme}", timeout=2)
+        save_json("settings.json", {"theme": self.theme})
+        self.notify(f"Theme: {self.theme} (saved)", timeout=2)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         bid = event.button.id or ""
         if bid == "top-theme":
             self.action_cycle_theme()
-        elif bid == "top-sidebar":
-            self.action_focus_sidebar()
+        elif bid == "top-spotlight":
+            self.action_open_spotlight()
+        elif bid == "top-help":
+            self.action_open_help()
         elif bid == "top-quit":
             self.exit()
