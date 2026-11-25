@@ -1,18 +1,25 @@
-"""Clice Plugins & Marketplace Manager — Browse plugins/, preview readme/<name>/README.md, scaffold."""
+"""Clice Plugins & GitHub Marketplace Manager (default: jaunchun-tech/clice-marketplace)."""
 
 from __future__ import annotations
 
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical, VerticalScroll
-from textual.widgets import Button, DataTable, Input, Markdown, Static
+from textual.widgets import Button, DataTable, Input, Markdown, Static, TabbedContent, TabPane
 
 from clice.core.config import get_plugins_dir
+from clice.core.marketplace import (
+    DEFAULT_MARKETPLACE_REPO,
+    MarketplacePluginInfo,
+    fetch_marketplace_readme,
+    install_marketplace_plugin,
+    list_marketplace_plugins,
+)
 from clice.core.plugins import PluginRegistry, create_plugin_template
 
 
 class PluginsViewApp(Vertical):
-    """Keyboard-first Plugin Manager with live readme/<plugin>/README.md preview."""
+    """Manage local plugins and browse/install from GitHub Marketplace (jaunchun-tech/clice-marketplace)."""
 
     BINDINGS = [
         Binding("r", "reload_plugins", "Reload"),
@@ -22,33 +29,54 @@ class PluginsViewApp(Vertical):
     def __init__(self, registry: PluginRegistry) -> None:
         super().__init__()
         self.registry = registry
+        self._remote_plugins: list[MarketplacePluginInfo] = []
 
     def compose(self) -> ComposeResult:
         with Horizontal(classes="toolbar"):
             yield Static("[b #8b5cf6][+] Clice Plugins & Marketplace[/b #8b5cf6]", classes="app-title")
-            yield Input(placeholder="New plugin name (creates plugins/<name>/ + readme/<name>/)...", id="plugin-new-name")
-            yield Button("+ Create Plugin", variant="success", id="plugin-create")
-            yield Button("Reload (R)", variant="primary", id="plugin-reload")
+            yield Static(f"[dim]Local dir: {get_plugins_dir()}[/dim]")
 
-        yield Static(
-            f"[b]Layout:[/b] [cyan]./plugins/<name>/plugin.py[/cyan]  +  [cyan]./readme/<name>/README.md[/cyan]  "
-            f"(also [cyan]{get_plugins_dir()}[/cyan])\n"
-            "[dim]Use ↑ / ↓ to inspect a plugin's README, press Enter to launch it![/dim]",
-            classes="metric-box",
-        )
+        with TabbedContent(id="plugins-tabs"):
+            with TabPane("Installed Plugins", id="ptab-installed"):
+                with Horizontal(classes="toolbar"):
+                    yield Input(placeholder="New plugin name (scaffolds plugins/<name>/ + readme/<name>/)...", id="plugin-new-name")
+                    yield Button("+ Create Template", variant="success", id="plugin-create")
+                    yield Button("Reload (R)", variant="primary", id="plugin-reload")
+                    yield Button("Launch (Enter)", id="plugin-launch")
 
-        with Horizontal(id="docs-split"):
-            yield DataTable(id="plugins-table", cursor_type="row")
-            with VerticalScroll(id="docs-preview-scroll"):
-                yield Markdown("_Select a plugin to view its README.md_", id="plugin-readme-view")
+                with Horizontal(id="docs-split"):
+                    yield DataTable(id="plugins-table", cursor_type="row")
+                    with VerticalScroll(id="docs-preview-scroll"):
+                        yield Markdown("_Select a plugin to view its README.md_", id="plugin-readme-view")
+
+            with TabPane("GitHub Marketplace", id="ptab-marketplace"):
+                with Horizontal(classes="toolbar"):
+                    yield Input(
+                        value=DEFAULT_MARKETPLACE_REPO,
+                        placeholder="GitHub repo (owner/repo)...",
+                        id="mkt-repo-input",
+                    )
+                    yield Button("Fetch Marketplace", variant="primary", id="mkt-fetch")
+                    yield Button("Install Selected", variant="success", id="mkt-install")
+
+                with Horizontal(id="docs-split"):
+                    yield DataTable(id="mkt-table", cursor_type="row")
+                    with VerticalScroll(id="docs-preview-scroll"):
+                        yield Markdown(
+                            f"# Clice GitHub Marketplace\n\n"
+                            f"Default repo: **`{DEFAULT_MARKETPLACE_REPO}`**\n\n"
+                            "Click **Fetch Marketplace** to browse plugins from `plugins/<slug>/` "
+                            "and preview `readme/<slug>/README.md`!",
+                            id="mkt-readme-view",
+                        )
 
         yield Static("", id="plugins-status", classes="status-strip")
 
     def on_mount(self) -> None:
-        self._refresh_table()
+        self._refresh_installed()
         self.query_one("#plugins-table", DataTable).focus()
 
-    def _refresh_table(self) -> None:
+    def _refresh_installed(self) -> None:
         table = self.query_one("#plugins-table", DataTable)
         table.clear(columns=True)
         table.add_columns("Icon", "Name", "Version", "Author")
@@ -59,11 +87,14 @@ class PluginsViewApp(Vertical):
         if self.registry.loaded:
             self.query_one("#plugin-readme-view", Markdown).update(self.registry.loaded[0].read_readme())
         else:
-            self.query_one("#plugin-readme-view", Markdown).update("_No plugins installed yet._")
+            self.query_one("#plugin-readme-view", Markdown).update(
+                "_No plugins installed yet. Switch to the **GitHub Marketplace** tab to install from "
+                f"`{DEFAULT_MARKETPLACE_REPO}` or create a local template above!_"
+            )
 
         err_msg = f"  •  {len(self.registry.errors)} error(s)" if self.registry.errors else ""
         self.query_one("#plugins-status", Static).update(
-            f"Loaded {len(self.registry.loaded)} plugin(s){err_msg}  •  ↑/↓ Preview README  •  Enter Launch  •  R Reload"
+            f"Installed: {len(self.registry.loaded)} plugin(s){err_msg}  •  ↑/↓ Preview README  •  Enter Launch  •  R Reload"
         )
 
     def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
@@ -73,6 +104,15 @@ class PluginsViewApp(Vertical):
                 self.query_one("#plugin-readme-view", Markdown).update(
                     self.registry.loaded[idx].read_readme()
                 )
+        elif event.data_table.id == "mkt-table":
+            idx = event.cursor_row
+            if 0 <= idx < len(self._remote_plugins):
+                info = self._remote_plugins[idx]
+                try:
+                    md = fetch_marketplace_readme(info.slug, repo=info.repo)
+                except Exception as exc:
+                    md = f"_Could not fetch README: {exc}_"
+                self.query_one("#mkt-readme-view", Markdown).update(md)
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
         if event.data_table.id == "plugins-table":
@@ -88,22 +128,61 @@ class PluginsViewApp(Vertical):
     def action_reload_plugins(self) -> None:
         if hasattr(self.app, "reload_plugins"):
             self.app.reload_plugins()  # type: ignore[attr-defined]
-        self._refresh_table()
+        self._refresh_installed()
         self.query_one("#plugins-status", Static).update("Reloaded plugins!")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         bid = event.button.id
         status = self.query_one("#plugins-status", Static)
+
         if bid == "plugin-create":
             name = self.query_one("#plugin-new-name", Input).value.strip()
             if not name:
                 status.update("Enter a plugin name first")
                 return
-            path = create_plugin_template(name)
+            path = create_plugin_template(name, target_dir=get_plugins_dir())
             self.query_one("#plugin-new-name", Input).value = ""
             if hasattr(self.app, "reload_plugins"):
                 self.app.reload_plugins()  # type: ignore[attr-defined]
-            self._refresh_table()
+            self._refresh_installed()
             status.update(f"Created & loaded: {path}")
         elif bid == "plugin-reload":
             self.action_reload_plugins()
+        elif bid == "plugin-launch":
+            self.action_launch_selected()
+        elif bid == "mkt-fetch":
+            repo = self.query_one("#mkt-repo-input", Input).value.strip() or DEFAULT_MARKETPLACE_REPO
+            status.update(f"Fetching marketplace from {repo}...")
+            try:
+                self._remote_plugins = list_marketplace_plugins(repo)
+                table = self.query_one("#mkt-table", DataTable)
+                table.clear(columns=True)
+                table.add_columns("Plugin Slug", "Repository")
+                for info in self._remote_plugins:
+                    table.add_row(info.slug, info.repo)
+                if self._remote_plugins:
+                    first = self._remote_plugins[0]
+                    self.query_one("#mkt-readme-view", Markdown).update(
+                        fetch_marketplace_readme(first.slug, repo=first.repo)
+                    )
+                    status.update(f"Found {len(self._remote_plugins)} plugin(s) in {repo}")
+                else:
+                    status.update(f"No plugin folders found under plugins/ in {repo}")
+            except Exception as exc:
+                status.update(f"Marketplace fetch error: {exc}")
+        elif bid == "mkt-install":
+            table = self.query_one("#mkt-table", DataTable)
+            idx = table.cursor_row
+            if idx is None or not (0 <= idx < len(self._remote_plugins)):
+                status.update("Select a marketplace plugin first")
+                return
+            info = self._remote_plugins[idx]
+            try:
+                dest = install_marketplace_plugin(info.slug, repo=info.repo)
+                if hasattr(self.app, "reload_plugins"):
+                    self.app.reload_plugins()  # type: ignore[attr-defined]
+                self._refresh_installed()
+                status.update(f"Installed '{info.slug}' to {dest}!")
+                self.notify(f"Installed plugin: {info.slug}", timeout=3)
+            except Exception as exc:
+                status.update(f"Install error: {exc}")

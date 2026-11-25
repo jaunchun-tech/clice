@@ -338,4 +338,143 @@ Screen {
     height: 1fr;
     border: round #a855f7;
 }
+
+/* Main Menu App Rectangles (Arrow + Click Navigable) */
+#home-grid-tiles {
+    layout: grid;
+    grid-size: 3;
+    grid-gutter: 1 2;
+    height: auto;
+    margin-bottom: 1;
+}
+
+.app-tile {
+    height: 8;
+    padding: 1 2;
+    border: round $primary-darken-1;
+    background: $panel;
+}
+
+.app-tile:hover {
+    background: $boost;
+    border: heavy $accent;
+}
+
+.app-tile:focus {
+    background: $primary-darken-2;
+    border: double $accent;
+}
+
+.tile-excel { border: round #22c55e; }
+.tile-excel:focus { border: double #4ade80; background: #052e16; }
+.tile-word { border: round #3b82f6; }
+.tile-word:focus { border: double #60a5fa; background: #172554; }
+.tile-ppt { border: round #f97316; }
+.tile-ppt:focus { border: double #fb923c; background: #431407; }
+.tile-files { border: round #eab308; }
+.tile-files:focus { border: double #facc15; background: #422006; }
+.tile-dev { border: round #a855f7; }
+.tile-dev:focus { border: double #c084fc; background: #3b0764; }
+.tile-calc { border: round #06b6d4; }
+.tile-calc:focus { border: double #22d3ee; background: #083344; }
+.tile-notes { border: round #ec4899; }
+.tile-notes:focus { border: double #f472b6; background: #500724; }
+.tile-cal { border: round #14b8a6; }
+.tile-cal:focus { border: double #2dd4bf; background: #042f2e; }
+.tile-sys { border: round #ef4444; }
+.tile-sys:focus { border: double #f87171; background: #450a0a; }
+.tile-plugins { border: round #8b5cf6; }
+.tile-plugins:focus { border: double #a78bfa; background: #2e1065; }
+
+/* Office-Style Top Ribbon */
+.ribbon-container {
+    height: auto;
+    background: $panel;
+    border: round $primary-darken-1;
+    padding: 0 1;
+    margin-bottom: 1;
+}
+
+.ribbon-tabs {
+    height: 3;
+    border-bottom: solid $primary-darken-2;
+    align: left middle;
+}
+
+.ribbon-tabs Button {
+    min-width: 10;
+    height: 3;
+    margin-right: 1;
+    background: transparent;
+    border: none;
+}
+
+.ribbon-tabs Button.-active-tab {
+    background: $primary;
+    text-style: bold;
+}
+
+.ribbon-tools {
+    height: 3;
+    padding: 0 0;
+    align: left middle;
+}
+
+.ribbon-tools Button {
+    min-width: 8;
+    height: 3;
+    margin-right: 1;
+}
+
+.find-bar {
+    height: 3;
+    margin-bottom: 1;
+    align: left middle;
+}
+
+.find-bar Input {
+    width: 1fr;
+    margin-right: 1;
+}
+
+/* Modal File Picker */
+FilePickerModal {
+    align: center middle;
+}
+
+#file-picker-dialog {
+    width: 80%;
+    height: 80%;
+    background: $surface;
+    border: double $accent;
+    padding: 1 2;
+}
+
+#fp-header {
+    height: 2;
+    border-bottom: solid $primary;
+    margin-bottom: 1;
+}
+
+#fp-cwd {
+    height: 1;
+    color: $accent;
+    margin-bottom: 1;
+}
+
+#fp-table {
+    height: 1fr;
+    border: round $primary-darken-1;
+    margin-bottom: 1;
+}
+
+#fp-footer {
+    height: 3;
+    align: left middle;
+}
+
+#fp-filename {
+    width: 1fr;
+    margin-right: 1;
+}
 """
