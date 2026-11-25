@@ -25,17 +25,17 @@ from clice.core.plugins import PluginRegistry
 from clice.theme import AVAILABLE_THEMES, CLICE_CSS
 
 BUILTIN_NAV: list[tuple[str, str, str, str]] = [
-    ("home", "[b #38bdf8][H][/b #38bdf8]", "Home", "F1"),
-    ("sheets", "[b #22c55e][X][/b #22c55e]", "Sheets (Excel)", "F2"),
-    ("docs", "[b #3b82f6][W][/b #3b82f6]", "Docs (Word)", "F3"),
-    ("slides", "[b #f97316][P][/b #f97316]", "Slides (PPT)", "F4"),
-    ("files", "[b #eab308][F][/b #eab308]", "Files & cd", "F5"),
-    ("devtools", "[b #a855f7][<>][/b #a855f7]", "Coding Utils", "F6"),
-    ("calc", "[b #06b6d4][=][/b #06b6d4]", "Calculator", "F7"),
-    ("notes", "[b #ec4899][✓][/b #ec4899]", "Notes & Tasks", "F8"),
-    ("calendar", "[b #14b8a6][#][/b #14b8a6]", "Calendar", "F9"),
-    ("sysmon", "[b #ef4444][~][/b #ef4444]", "SysMon", ""),
-    ("plugins", "[b #8b5cf6][+][/b #8b5cf6]", "Plugins", ""),
+    ("home", "[b #38bdf8]\\[H][/b #38bdf8]", "Home", "F1"),
+    ("sheets", "[b #22c55e]\\[X][/b #22c55e]", "Sheets (Excel)", "F2"),
+    ("docs", "[b #3b82f6]\\[W][/b #3b82f6]", "Docs (Word)", "F3"),
+    ("slides", "[b #f97316]\\[P][/b #f97316]", "Slides (PPT)", "F4"),
+    ("files", "[b #eab308]\\[F][/b #eab308]", "Files & cd", "F5"),
+    ("devtools", "[b #a855f7]\\[<>][/b #a855f7]", "Coding Utils", "F6"),
+    ("calc", "[b #06b6d4]\\[=][/b #06b6d4]", "Calculator", "F7"),
+    ("notes", "[b #ec4899]\\[✓][/b #ec4899]", "Notes & Tasks", "F8"),
+    ("calendar", "[b #14b8a6]\\[#][/b #14b8a6]", "Calendar", "F9"),
+    ("sysmon", "[b #ef4444]\\[~][/b #ef4444]", "SysMon", ""),
+    ("plugins", "[b #8b5cf6]\\[+][/b #8b5cf6]", "Plugins", ""),
 ]
 
 

@@ -16,16 +16,16 @@ from clice.core.config import get_recent_files
 GRID_COLS = 3
 
 MAIN_MENU_APPS: list[tuple[str, str, str, str, str, str]] = [
-    ("sheets", "[b #22c55e][X][/b #22c55e]", "Clice Sheets", "Excel • Ribbon • Formulas • Sort\n.xlsx & .csv File Browser", "F2", "tile-excel"),
-    ("docs", "[b #3b82f6][W][/b #3b82f6]", "Clice Docs", "Word • Ribbon • Find/Replace\nNative .md, .docx & .txt", "F3", "tile-word"),
-    ("slides", "[b #f97316][P][/b #f97316]", "Clice Slides", "PowerPoint • Themes • Present\n.pptx, .md & .json Decks", "F4", "tile-ppt"),
-    ("files", "[b #eab308][F][/b #eab308]", "File Explorer", "Easy cd • mkdir • touch • Open\nCross-Platform File System", "F5", "tile-files"),
-    ("devtools", "[b #a855f7][<>][/b #a855f7]", "Coding Utils", "JSON • Regex • Base64 • Hash\nUUID • JWT • Color • Code Pad", "F6", "tile-dev"),
-    ("calc", "[b #06b6d4][=][/b #06b6d4]", "Calculator", "Scientific • Expression History\nHEX / DEC / OCT / BIN", "F7", "tile-calc"),
-    ("notes", "[b #ec4899][✓][/b #ec4899]", "Notes & Tasks", "To-Do Manager • Priorities\nAuto-Saved Quick Notes", "F8", "tile-notes"),
-    ("calendar", "[b #14b8a6][#][/b #14b8a6]", "Calendar & Focus", "Interactive Month • Events\nPomodoro 25:00 Timer", "F9", "tile-cal"),
-    ("sysmon", "[b #ef4444][~][/b #ef4444]", "System Monitor", "Live CPU • RAM • Disk Bars\nTop Processes (psutil)", "", "tile-sys"),
-    ("plugins", "[b #8b5cf6][+][/b #8b5cf6]", "Plugins & Market", "plugins/<name>/ + readme/<name>/\nLive README Preview & Scaffold", "", "tile-plugins"),
+    ("sheets", "[b #22c55e]\\[X][/b #22c55e]", "Clice Sheets", "Excel • Ribbon • Formulas • Sort\n.xlsx & .csv File Browser", "F2", "tile-excel"),
+    ("docs", "[b #3b82f6]\\[W][/b #3b82f6]", "Clice Docs", "Word • Ribbon • Find/Replace\nNative .md, .docx & .txt", "F3", "tile-word"),
+    ("slides", "[b #f97316]\\[P][/b #f97316]", "Clice Slides", "PowerPoint • Design • Present\n.pptx, .md & .json Decks", "F4", "tile-ppt"),
+    ("files", "[b #eab308]\\[F][/b #eab308]", "File Explorer", "Easy cd • mkdir • touch • Open\nCross-Platform File System", "F5", "tile-files"),
+    ("devtools", "[b #a855f7]\\[<>][/b #a855f7]", "Coding Utils", "JSON • Regex • Base64 • Hash\nUUID • JWT • Color • Code Pad", "F6", "tile-dev"),
+    ("calc", "[b #06b6d4]\\[=][/b #06b6d4]", "Calculator", "Scientific • Expression History\nHEX / DEC / OCT / BIN", "F7", "tile-calc"),
+    ("notes", "[b #ec4899]\\[✓][/b #ec4899]", "Notes & Tasks", "To-Do Manager • Priorities\nAuto-Saved Quick Notes", "F8", "tile-notes"),
+    ("calendar", "[b #14b8a6]\\[#][/b #14b8a6]", "Calendar & Focus", "Interactive Month • Events\nPomodoro 25:00 Timer", "F9", "tile-cal"),
+    ("sysmon", "[b #ef4444]\\[~][/b #ef4444]", "System Monitor", "Live CPU • RAM • Disk Bars\nTop Processes (psutil)", "", "tile-sys"),
+    ("plugins", "[b #8b5cf6]\\[+][/b #8b5cf6]", "Plugins & Market", "GitHub Auto-Pull Marketplace\nLive README Preview & Install", "", "tile-plugins"),
 ]
 
 

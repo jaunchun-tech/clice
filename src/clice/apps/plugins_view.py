@@ -57,8 +57,8 @@ class PluginsViewApp(Vertical):
                         placeholder="GitHub repo (owner/repo)...",
                         id="mkt-repo-input",
                     )
-                    yield Button("Fetch Marketplace", variant="primary", id="mkt-fetch")
-                    yield Button("Install Selected", variant="success", id="mkt-install")
+                    yield Button("↻ Refresh", variant="primary", id="mkt-fetch")
+                    yield Button("⬇ Download & Install", variant="success", id="mkt-install")
 
                 with Horizontal(id="docs-split"):
                     yield DataTable(id="mkt-table", cursor_type="row")
@@ -154,6 +154,27 @@ class PluginsViewApp(Vertical):
     def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
         if event.data_table.id == "plugins-table":
             self.action_launch_selected()
+        elif event.data_table.id == "mkt-table":
+            self._install_selected_marketplace_plugin()
+
+    def _install_selected_marketplace_plugin(self) -> None:
+        status = self.query_one("#plugins-status", Static)
+        table = self.query_one("#mkt-table", DataTable)
+        idx = table.cursor_row
+        if idx is None or not (0 <= idx < len(self._remote_plugins)):
+            status.update("Select a marketplace plugin first")
+            return
+        info = self._remote_plugins[idx]
+        try:
+            dest = install_marketplace_plugin(info.slug, repo=info.repo)
+            if hasattr(self.app, "reload_plugins"):
+                self.app.reload_plugins()  # type: ignore[attr-defined]
+            self._refresh_installed()
+            self._auto_pull_marketplace(info.repo)
+            status.update(f"Downloaded & installed '{info.slug}' to {dest}!")
+            self.notify(f"Downloaded & installed: {info.slug}", timeout=3)
+        except Exception as exc:
+            status.update(f"Install error: {exc}")
 
     def action_launch_selected(self) -> None:
         table = self.query_one("#plugins-table", DataTable)
@@ -208,18 +229,4 @@ class PluginsViewApp(Vertical):
             except Exception as exc:
                 status.update(f"Marketplace fetch error: {exc}")
         elif bid == "mkt-install":
-            table = self.query_one("#mkt-table", DataTable)
-            idx = table.cursor_row
-            if idx is None or not (0 <= idx < len(self._remote_plugins)):
-                status.update("Select a marketplace plugin first")
-                return
-            info = self._remote_plugins[idx]
-            try:
-                dest = install_marketplace_plugin(info.slug, repo=info.repo)
-                if hasattr(self.app, "reload_plugins"):
-                    self.app.reload_plugins()  # type: ignore[attr-defined]
-                self._refresh_installed()
-                status.update(f"Installed '{info.slug}' to {dest}!")
-                self.notify(f"Installed plugin: {info.slug}", timeout=3)
-            except Exception as exc:
-                status.update(f"Install error: {exc}")
+            self._install_selected_marketplace_plugin()
