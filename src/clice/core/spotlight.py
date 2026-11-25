@@ -35,6 +35,9 @@ class SpotlightModal(ModalScreen[tuple[str, str] | None]):
     def on_mount(self) -> None:
         self._render_list("")
         self.query_one("#sp-input", Input).focus()
+        dlg = self.query_one("#spotlight-dialog", Vertical)
+        dlg.styles.opacity = 0.0
+        dlg.styles.animate("opacity", value=1.0, duration=0.18, easing="out_cubic")
 
     def _render_list(self, query: str) -> None:
         q = query.strip().lower()

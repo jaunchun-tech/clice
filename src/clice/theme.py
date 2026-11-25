@@ -523,4 +523,55 @@ SpotlightModal, HelpModal {
     content-align: center middle;
     height: 1;
 }
+
+/* Intro Splash Screen */
+IntroSplashScreen {
+    align: center middle;
+    background: #090d16 92%;
+}
+
+#intro-card {
+    width: 66;
+    height: 18;
+    border: double #818cf8;
+    background: #0f172a;
+    padding: 2 4;
+    align: center middle;
+}
+
+#intro-logo {
+    content-align: center middle;
+    height: auto;
+    margin-bottom: 1;
+}
+
+#intro-sub, #intro-status, #intro-hint {
+    content-align: center middle;
+    height: 1;
+    margin-bottom: 1;
+}
+
+#intro-bar {
+    width: 100%;
+    margin-bottom: 1;
+}
+
+/* Stunning GUI Hero Banner on Home */
+#home-hero {
+    height: auto;
+    padding: 1 2;
+    margin-bottom: 1;
+    background: $panel;
+    border: double $primary;
+}
+
+#home-quick-actions {
+    height: 3;
+    margin-top: 1;
+    align: left middle;
+}
+
+#home-quick-actions Button {
+    margin-right: 1;
+}
 """

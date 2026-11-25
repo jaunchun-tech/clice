@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 
+import psutil
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Grid, Vertical
+from textual.containers import Grid, Horizontal, Vertical
 from textual.events import Click
-from textual.widgets import Static
+from textual.widgets import Button, Static
 
 from clice import __version__
 from clice.core.config import get_recent_files
@@ -89,11 +91,22 @@ class HomeApp(Vertical):
         self._tile_count = 0
 
     def compose(self) -> ComposeResult:
-        yield Static(
-            f"[b]◆ CLICE v{__version__}[/b]  —  Terminal Office Suite & Developer Desktop\n"
-            "[dim]Use ← ↑ ↓ → Arrows + Enter (or Click) on any app rectangle  •  F1–F9 quick switch  •  Ctrl+B sidebar  •  Ctrl+T theme[/dim]",
-            id="home-banner",
-        )
+        cpu = psutil.cpu_percent(interval=None)
+        ram = psutil.virtual_memory().percent
+        now = datetime.now().strftime("%a %b %d  •  %H:%M")
+        with Vertical(id="home-hero"):
+            yield Static(
+                f"[b #38bdf8]◆ CLICE DESKTOP[/b #38bdf8] [dim]v{__version__}[/dim]   "
+                f"[b #a78bfa]│[/b #a78bfa]   [cyan]{now}[/cyan]   "
+                f"[b #a78bfa]│[/b #a78bfa]   CPU [b #4ade80]{cpu:.0f}%[/b #4ade80]  RAM [b #fb923c]{ram:.0f}%[/b #fb923c]\n"
+                f"[dim]📂 {Path.cwd()}   •   ← ↑ ↓ → Arrows + Enter (or Click) any app rectangle[/dim]"
+            )
+            with Horizontal(id="home-quick-actions"):
+                yield Button("+ New Sheet", variant="success", id="qa-sheets")
+                yield Button("+ New Doc", variant="primary", id="qa-docs")
+                yield Button("+ New Slides", variant="warning", id="qa-slides")
+                yield Button("Search (^K)", id="qa-spotlight")
+                yield Button("Marketplace", id="qa-plugins")
 
         tiles: list[tuple[str, str, str, str, str, str]] = list(MAIN_MENU_APPS)
         if hasattr(self.app, "plugin_registry"):
@@ -136,3 +149,16 @@ class HomeApp(Vertical):
         cur = focused.tile_index if isinstance(focused, AppTile) else 0
         nxt = max(0, min(self._tile_count - 1, cur + delta))
         self.query_one(f"#tile-{nxt}", AppTile).focus()
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        bid = event.button.id or ""
+        if bid == "qa-sheets":
+            self.app.switch_app("sheets")  # type: ignore[attr-defined]
+        elif bid == "qa-docs":
+            self.app.switch_app("docs")  # type: ignore[attr-defined]
+        elif bid == "qa-slides":
+            self.app.switch_app("slides")  # type: ignore[attr-defined]
+        elif bid == "qa-spotlight":
+            self.app.action_open_spotlight()  # type: ignore[attr-defined]
+        elif bid == "qa-plugins":
+            self.app.switch_app("plugins")  # type: ignore[attr-defined]
