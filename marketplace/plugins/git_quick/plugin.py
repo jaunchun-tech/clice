@@ -1,6 +1,7 @@
-"""Clice Plugin: Git Quick Status & Log Viewer.
+"""Sample Marketplace Plugin: Git Quick Status & Log Viewer.
 
-Lives in `plugins/git_quick/plugin.py` with docs in `readme/git_quick/README.md`.
+Push `plugins/git_quick/plugin.py` and `readme/git_quick/README.md` to
+https://github.com/jaunchun-tech/clice-marketplace to test Clice's Marketplace!
 """
 
 from __future__ import annotations
@@ -74,7 +75,7 @@ class GitQuickPlugin(ClicePlugin):
     icon = "[G]"
     description = "Quick git status & commit log viewer for the current directory."
     version = "0.2.0"
-    author = "Clice"
+    author = "Clice Marketplace"
 
     def create_widget(self) -> Vertical:
         return GitQuickWidget()
