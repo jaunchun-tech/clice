@@ -228,7 +228,9 @@ class CliceApp(App[str | None]):
         if widget is None:
             widget = HomeApp()
 
+        widget.styles.opacity = 0.0
         workspace.mount(widget)
+        widget.styles.animate("opacity", value=1.0, duration=0.22, easing="out_cubic")
 
     def on_list_view_selected(self, event: ListView.Selected) -> None:
         if event.list_view.id == "sidebar-list" and event.list_view.index is not None:

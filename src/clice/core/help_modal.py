@@ -47,6 +47,11 @@ class HelpModal(ModalScreen[None]):
                 yield Markdown(HELP_MD)
             yield Button("Close (Esc)", variant="primary", id="help-close")
 
+    def on_mount(self) -> None:
+        dlg = self.query_one("#help-dialog", Vertical)
+        dlg.styles.opacity = 0.0
+        dlg.styles.animate("opacity", value=1.0, duration=0.18, easing="out_cubic")
+
     def action_close_help(self) -> None:
         self.dismiss(None)
 
