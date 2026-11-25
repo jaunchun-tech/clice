@@ -1,8 +1,11 @@
-"""Extensible local plugin system for Clice.
+"""Extensible local & marketplace-ready plugin system for Clice.
 
-Drop any `.py` file into `~/.clice/plugins/` (or `./plugins/`) defining a subclass
-of `ClicePlugin` (or a top-level `PLUGIN` instance) and Clice will automatically
-discover and mount it as a first-class app in the sidebar and launcher.
+Supports two layouts in `~/.clice/plugins/`, `./plugins/`, and `--plugins-dir`:
+1. Folder-based (Marketplace layout):
+   - `plugins/<plugin_name>/plugin.py` (or `__init__.py` or `<plugin_name>.py`)
+   - Matching docs/assets in `readme/<plugin_name>/README.md`
+2. Single-file layout:
+   - `plugins/<plugin_name>.py`
 """
 
 from __future__ import annotations
@@ -11,7 +14,6 @@ import importlib.util
 import inspect
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
 
 from textual.widget import Widget
 
@@ -23,7 +25,7 @@ class ClicePlugin:
 
     id: str = "custom_plugin"
     name: str = "Custom Plugin"
-    icon: str = "🧩"
+    icon: str = "[+]"
     description: str = "A custom Clice plugin."
     version: str = "0.1.0"
     author: str = "Unknown"
@@ -38,7 +40,37 @@ class ClicePlugin:
 class LoadedPlugin:
     plugin: ClicePlugin
     source_path: Path
+    readme_path: Path | None = None
     error: str | None = None
+
+    def read_readme(self) -> str:
+        if self.readme_path and self.readme_path.exists():
+            try:
+                return self.readme_path.read_text(encoding="utf-8")
+            except Exception:
+                pass
+        return (
+            f"# {self.plugin.name}\n\n"
+            f"{self.plugin.description}\n\n"
+            f"- **ID:** `{self.plugin.id}`\n"
+            f"- **Version:** `{self.plugin.version}`\n"
+            f"- **Author:** {self.plugin.author}\n"
+            f"- **Source:** `{self.source_path}`\n"
+        )
+
+
+def _find_readme_for_plugin(plugin_dir: Path, slug: str) -> Path | None:
+    """Look for readme/<slug>/README.md next to the plugins/ directory or inside plugin_dir."""
+    candidates = [
+        plugin_dir.parent / "readme" / slug / "README.md",
+        plugin_dir.parent.parent / "readme" / slug / "README.md",
+        Path.cwd() / "readme" / slug / "README.md",
+        plugin_dir / "README.md",
+    ]
+    for c in candidates:
+        if c.exists() and c.is_file():
+            return c.resolve()
+    return None
 
 
 @dataclass
@@ -51,7 +83,7 @@ class PluginRegistry:
         self.loaded.clear()
         self.errors.clear()
 
-        search_dirs: list[Path] = [get_plugins_dir(), Path.cwd() / "plugins"]
+        search_dirs: list[Path] = [Path.cwd() / "plugins", get_plugins_dir()]
         if extra_dirs:
             search_dirs.extend(extra_dirs)
 
@@ -61,6 +93,26 @@ class PluginRegistry:
         for directory in search_dirs:
             if not directory.exists() or not directory.is_dir():
                 continue
+
+            # 1. Folder-based plugins: plugins/<slug>/plugin.py | __init__.py | <slug>.py
+            for sub in sorted(directory.iterdir()):
+                if sub.is_dir() and not sub.name.startswith(("_", ".")):
+                    entry = None
+                    for fname in ("plugin.py", f"{sub.name}.py", "__init__.py"):
+                        cand = sub / fname
+                        if cand.exists() and cand.is_file():
+                            entry = cand.resolve()
+                            break
+                    if entry is None:
+                        py_files = [p for p in sorted(sub.glob("*.py")) if not p.name.startswith("_")]
+                        if py_files:
+                            entry = py_files[0].resolve()
+                    if entry and entry not in seen_paths:
+                        seen_paths.add(entry)
+                        readme = _find_readme_for_plugin(sub, sub.name)
+                        self._load_file(entry, seen_ids, readme_path=readme)
+
+            # 2. Single-file plugins: plugins/<slug>.py
             for py_file in sorted(directory.glob("*.py")):
                 if py_file.name.startswith("_"):
                     continue
@@ -68,9 +120,15 @@ class PluginRegistry:
                 if resolved in seen_paths:
                     continue
                 seen_paths.add(resolved)
-                self._load_file(resolved, seen_ids)
+                readme = _find_readme_for_plugin(directory, py_file.stem)
+                self._load_file(resolved, seen_ids, readme_path=readme)
 
-    def _load_file(self, path: Path, seen_ids: set[str]) -> None:
+    def _load_file(
+        self,
+        path: Path,
+        seen_ids: set[str],
+        readme_path: Path | None = None,
+    ) -> None:
         module_name = f"clice_user_plugin_{path.stem}_{abs(hash(str(path))) % 100000}"
         try:
             spec = importlib.util.spec_from_file_location(module_name, path)
@@ -96,12 +154,14 @@ class PluginRegistry:
                 if plugin.id in seen_ids:
                     continue
                 seen_ids.add(plugin.id)
-                self.loaded.append(LoadedPlugin(plugin=plugin, source_path=path))
+                self.loaded.append(
+                    LoadedPlugin(plugin=plugin, source_path=path, readme_path=readme_path)
+                )
         except Exception as exc:
             self.errors.append((path, f"{type(exc).__name__}: {exc}"))
 
 
-PLUGIN_TEMPLATE = '''"""Example Clice Plugin — {name}."""
+PLUGIN_TEMPLATE = '''"""Clice Plugin — {name}."""
 
 from textual.app import ComposeResult
 from textual.containers import Vertical
@@ -114,22 +174,32 @@ class {class_name}Widget(Vertical):
     """Main UI for the {name} plugin."""
 
     def compose(self) -> ComposeResult:
-        yield Static("🧩 {name} Plugin", classes="app-title")
-        yield Label("Edit this file to build your own Clice app!")
-        yield Input(placeholder="Type something...", id="plugin-input")
+        yield Static("[+] {name} Plugin", classes="app-title")
+        yield Label("Edit this file to build your own Clice app! Press Enter to run.")
+        yield Input(placeholder="Type something and press Enter...", id="plugin-input")
         yield Button("Run Action", variant="primary", id="plugin-btn")
         yield Static("", id="plugin-output")
 
+    def on_mount(self) -> None:
+        self.query_one("#plugin-input", Input).focus()
+
+    def _run(self) -> None:
+        val = self.query_one("#plugin-input", Input).value
+        self.query_one("#plugin-output", Static).update(f"You entered: {{val or '(empty)'}}")
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        if event.input.id == "plugin-input":
+            self._run()
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "plugin-btn":
-            val = self.query_one("#plugin-input", Input).value
-            self.query_one("#plugin-output", Static).update(f"You entered: {{val or '(empty)'}}")
+            self._run()
 
 
 class {class_name}Plugin(ClicePlugin):
     id = "{plugin_id}"
     name = "{name}"
-    icon = "🧩"
+    icon = "[+]"
     description = "Custom plugin created with Clice."
     version = "0.1.0"
     author = "You"
@@ -138,20 +208,47 @@ class {class_name}Plugin(ClicePlugin):
         return {class_name}Widget()
 '''
 
+README_TEMPLATE = """# {name}
 
-def create_plugin_template(name: str, target_dir: Path | None = None) -> Path:
-    """Scaffold a new ready-to-run plugin file in ~/.clice/plugins."""
+Custom plugin for **Clice**.
+
+## Structure
+- Plugin code: `plugins/{slug}/plugin.py`
+- Documentation & assets: `readme/{slug}/README.md`
+
+## Usage
+Open **Clice** and select **{name}** from the sidebar or press `Ctrl+P` to launch it.
+"""
+
+
+def create_plugin_template(
+    name: str,
+    target_dir: Path | None = None,
+    readme_root: Path | None = None,
+) -> Path:
+    """Scaffold a new marketplace-layout plugin (`plugins/<slug>/plugin.py` + `readme/<slug>/README.md`)."""
     clean = "".join(ch if ch.isalnum() else "_" for ch in name.strip()).strip("_").lower()
     if not clean:
         clean = "my_plugin"
     class_name = "".join(part.capitalize() for part in clean.split("_")) or "MyPlugin"
-    dest_dir = target_dir or get_plugins_dir()
-    dest_dir.mkdir(parents=True, exist_ok=True)
-    path = dest_dir / f"{clean}.py"
+
+    plugins_root = target_dir or (Path.cwd() / "plugins")
+    plugin_folder = plugins_root / clean
+    plugin_folder.mkdir(parents=True, exist_ok=True)
+    plugin_path = plugin_folder / "plugin.py"
+
     content = PLUGIN_TEMPLATE.format(
         name=name.strip() or "My Plugin",
         class_name=class_name,
         plugin_id=f"plugin_{clean}",
     )
-    path.write_text(content, encoding="utf-8")
-    return path
+    plugin_path.write_text(content, encoding="utf-8")
+
+    r_root = readme_root or (plugins_root.parent / "readme")
+    readme_folder = r_root / clean
+    readme_folder.mkdir(parents=True, exist_ok=True)
+    (readme_folder / "README.md").write_text(
+        README_TEMPLATE.format(name=name.strip() or "My Plugin", slug=clean),
+        encoding="utf-8",
+    )
+    return plugin_path

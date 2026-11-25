@@ -36,9 +36,14 @@ pip install -e .
 Or install in a virtual environment:
 
 ```bash
-# macOS / Linux
+# macOS / Linux (Bash / Zsh)
 python3 -m venv .venv
 source .venv/bin/activate
+pip install -e .
+
+# macOS / Linux (Fish shell)
+python3 -m venv .venv
+source .venv/bin/activate.fish
 pip install -e .
 
 # Windows (PowerShell)
@@ -109,32 +114,40 @@ Then run `clice-cd`, navigate to any folder in **Files**, and click **📌 CD & 
 
 ---
 
-## ⌨️ Keyboard Shortcuts
+## ⌨️ Keyboard-First Shortcuts
 
-| Shortcut | Action |
-| --- | --- |
-| `F1` | Home Dashboard |
-| `F2` | Clice Sheets (Excel) |
-| `F3` | Clice Docs (Word) |
-| `F4` | Clice Slides (PowerPoint) |
-| `F5` | Clice Files & `cd` |
-| `F6` | Coding Utils |
-| `Ctrl+T` | Cycle Color Theme (`tokyo-night`, `textual-dark`, `nord`, `dracula`, `gruvbox`, `catppuccin-mocha`, `textual-light`) |
-| `Ctrl+P` | Textual Command Palette |
-| `Ctrl+Q` | Quit Clice |
+Clice is designed to be operated **100% with the keyboard** (while also supporting mouse clicks):
 
-In **Present Mode** (Clice Slides): `→` / `Space` / `Enter` for Next Slide, `←` for Previous Slide, `Esc` / `Q` to exit.
+| Scope | Shortcut | Action |
+| --- | --- | --- |
+| **Global** | `F1`–`F9` | Jump to Home, Sheets, Docs, Slides, Files, DevTools, Calc, Notes, Calendar |
+| **Global** | `Ctrl+B` | Focus Sidebar (`↑`/`↓` + `Enter` to switch apps) |
+| **Global** | `Ctrl+T` | Cycle Color Theme (7 built-in themes) |
+| **Global** | `Ctrl+P` / `Ctrl+Q` | Command Palette / Quit |
+| **Sheets (Excel)** | `↑↓←→` / `Enter` or `F2` / `Del` / `Ctrl+S` | Move cells / Edit cell / Clear cell / Save |
+| **Docs (Word)** | `Ctrl+S` / `Ctrl+O` / `Ctrl+I` / `Ctrl+K` / `Ctrl+1,2` | Save / Open / Italic / Code / H1 & H2 |
+| **Slides (PPT)** | `Ctrl+M` / `Alt+P` / `Alt+↑↓` / `Ctrl+S` | New Slide / Present Mode / Switch Slides / Save |
+| **Files** | `↑↓` + `Enter` / `←` or `Backspace` / `M` / `N` / `Del` / `C` | Browse / Up / `mkdir` / `touch` / Delete / CD & Exit |
 
 ---
 
-## 🧩 Writing Plugins
+## 🧩 Marketplace & Plugin Structure
 
-Clice automatically loads any `.py` file placed in:
-- `~/.clice/plugins/` (user-global plugins)
-- `./plugins/` (project-local plugins)
-- Any directory passed via `--plugins-dir`
+Clice supports a clean two-folder marketplace structure:
 
-You can also click **+ Create Plugin Template** inside the **🧩 Plugins** app to generate a ready-to-edit plugin!
+```text
+clice/
+├── plugins/
+│   └── <plugin_name>/
+│       └── plugin.py          # Plugin code (subclass of ClicePlugin)
+└── readme/
+    └── <plugin_name>/
+        ├── README.md          # Rendered live inside Clice's Plugins app!
+        └── ...                # Any plugin assets
+```
+
+Clice automatically discovers plugins in `./plugins/`, `~/.clice/plugins/`, and any `--plugins-dir` path.
+Open **Plugins** in Clice to browse installed plugins with `↑`/`↓`, read their `readme/<name>/README.md` live, press `Enter` to launch them, or scaffold a new plugin!
 
 Minimal plugin example:
 

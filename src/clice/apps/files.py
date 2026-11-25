@@ -1,4 +1,4 @@
-"""Clice Files — Cross-platform File Explorer with easy cd, mkdir, touch, and app launch."""
+"""Clice Files — Keyboard-First Cross-Platform File Explorer with easy cd, mkdir, touch."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ from datetime import datetime
 from pathlib import Path
 
 from textual.app import ComposeResult
+from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.widgets import Button, DataTable, Input, Static
 
@@ -21,34 +22,50 @@ def _fmt_size(num_bytes: int) -> str:
 
 
 class FilesApp(Vertical):
-    """File Explorer with easy cd, mkdir, touch, delete, and direct Open-in-Clice."""
+    """Keyboard-first File Explorer: Arrows + Enter, Backspace/Left up, M mkdir, N touch, C cd&exit."""
+
+    BINDINGS = [
+        Binding("backspace,left", "go_up", "Up (..)"),
+        Binding("h", "go_home", "Home"),
+        Binding("m", "focus_mkdir", "mkdir"),
+        Binding("n", "focus_touch", "touch"),
+        Binding("delete", "delete_selected", "Delete"),
+        Binding("c", "cd_and_exit", "CD & Exit"),
+        Binding("escape", "focus_table", "List"),
+    ]
 
     def __init__(self, start_dir: Path | None = None) -> None:
         super().__init__()
         self.current_dir: Path = (start_dir or Path.cwd()).resolve()
         self._entries: list[Path] = []
+        self._create_mode: str = "mkdir"
 
     def compose(self) -> ComposeResult:
         with Horizontal(classes="toolbar"):
-            yield Static("[b #eab308]📁 Clice Files[/b #eab308]", classes="app-title")
+            yield Static("[b #eab308][F] Clice Files[/b #eab308]", classes="app-title")
             yield Input(value=str(self.current_dir), placeholder="Enter path to cd...", id="files-cd-input")
             yield Button("Go / cd", variant="primary", id="files-go")
-            yield Button("⬆ Up", id="files-up")
-            yield Button("🏠 Home", id="files-home")
-            yield Button("📌 CD & Exit", variant="success", id="files-cd-exit")
+            yield Button("Up (←)", id="files-up")
+            yield Button("Home (H)", id="files-home")
+            yield Button("CD & Exit (C)", variant="success", id="files-cd-exit")
 
         with Horizontal(classes="toolbar"):
-            yield Input(placeholder="New file or folder name...", id="files-new-name")
-            yield Button("+ New Dir (mkdir)", variant="success", id="files-mkdir")
-            yield Button("+ New File (touch)", variant="primary", id="files-touch")
-            yield Button("Open Selected", id="files-open-sel")
-            yield Button("Delete Selected", variant="error", id="files-del-sel")
+            yield Input(placeholder="New file or folder name (press Enter)...", id="files-new-name")
+            yield Button("+ Dir (M)", variant="success", id="files-mkdir")
+            yield Button("+ File (N)", variant="primary", id="files-touch")
+            yield Button("Open (Enter)", id="files-open-sel")
+            yield Button("Del (Delete)", variant="error", id="files-del-sel")
 
         yield DataTable(id="files-table", cursor_type="row")
-        yield Static("Select a folder and press Enter to cd, or select a file to open it in Clice.", id="files-status", classes="status-strip")
+        yield Static(
+            "↑/↓: Select  •  Enter: Open/cd  •  ←/Backspace: Up  •  M: mkdir  •  N: touch  •  Del: Delete  •  C: CD & Exit",
+            id="files-status",
+            classes="status-strip",
+        )
 
     def on_mount(self) -> None:
         self._refresh_listing()
+        self.query_one("#files-table", DataTable).focus()
 
     def _refresh_listing(self) -> None:
         table = self.query_one("#files-table", DataTable)
@@ -83,11 +100,11 @@ class FilesApp(Vertical):
             except OSError:
                 size_str = "?"
                 mtime = "?"
-            icon = "📁" if p.is_dir() else "📄"
+            icon = "[DIR]" if p.is_dir() else " file"
             table.add_row(icon, p.name, size_str, mtime)
 
         self.query_one("#files-status", Static).update(
-            f"{self.current_dir}  •  {len(self._entries)} items"
+            f"{self.current_dir}  •  {len(self._entries)} items  •  ↑/↓ Enter  ← Up  M mkdir  N touch  C CD&Exit"
         )
 
     def _get_selected_entry(self) -> Path | None:
@@ -104,15 +121,99 @@ class FilesApp(Vertical):
         if hasattr(self.app, "open_file_in_appropriate_app"):
             self.app.open_file_in_appropriate_app(entry)  # type: ignore[attr-defined]
 
+    def action_go_up(self) -> None:
+        self.current_dir = self.current_dir.parent
+        self._refresh_listing()
+
+    def action_go_home(self) -> None:
+        self.current_dir = Path.home()
+        self._refresh_listing()
+
+    def action_focus_table(self) -> None:
+        self.query_one("#files-table", DataTable).focus()
+
+    def action_focus_mkdir(self) -> None:
+        self._create_mode = "mkdir"
+        inp = self.query_one("#files-new-name", Input)
+        inp.placeholder = "New directory name (Enter to create)..."
+        inp.focus()
+
+    def action_focus_touch(self) -> None:
+        self._create_mode = "touch"
+        inp = self.query_one("#files-new-name", Input)
+        inp.placeholder = "New file name (Enter to create)..."
+        inp.focus()
+
+    def action_cd_and_exit(self) -> None:
+        if hasattr(self.app, "exit_with_cd"):
+            self.app.exit_with_cd(self.current_dir)  # type: ignore[attr-defined]
+        else:
+            self.app.exit(str(self.current_dir))
+
+    def action_delete_selected(self) -> None:
+        status = self.query_one("#files-status", Static)
+        entry = self._get_selected_entry()
+        if entry is None:
+            status.update("No item selected")
+            return
+        try:
+            if entry.is_dir():
+                shutil.rmtree(entry)
+            else:
+                entry.unlink()
+            self._refresh_listing()
+            status.update(f"Deleted: {entry.name}")
+        except Exception as exc:
+            status.update(f"Delete error: {exc}")
+
     def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
         if event.data_table.id == "files-table":
             entry = self._get_selected_entry()
             if entry is not None:
                 self._open_entry(entry)
 
+    def _do_mkdir(self) -> None:
+        status = self.query_one("#files-status", Static)
+        name = self.query_one("#files-new-name", Input).value.strip()
+        if not name:
+            status.update("Enter a directory name first")
+            return
+        try:
+            new_dir = self.current_dir / name
+            new_dir.mkdir(parents=True, exist_ok=True)
+            self.query_one("#files-new-name", Input).value = ""
+            self._refresh_listing()
+            status.update(f"Created directory: {new_dir.name}")
+            self.query_one("#files-table", DataTable).focus()
+        except Exception as exc:
+            status.update(f"mkdir error: {exc}")
+
+    def _do_touch(self) -> None:
+        status = self.query_one("#files-status", Static)
+        name = self.query_one("#files-new-name", Input).value.strip()
+        if not name:
+            status.update("Enter a file name first")
+            return
+        try:
+            new_file = self.current_dir / name
+            new_file.parent.mkdir(parents=True, exist_ok=True)
+            new_file.touch(exist_ok=True)
+            self.query_one("#files-new-name", Input).value = ""
+            self._refresh_listing()
+            status.update(f"Created file: {new_file.name}")
+            self.query_one("#files-table", DataTable).focus()
+        except Exception as exc:
+            status.update(f"touch error: {exc}")
+
     def on_input_submitted(self, event: Input.Submitted) -> None:
         if event.input.id == "files-cd-input":
             self._cd_to(event.value)
+            self.query_one("#files-table", DataTable).focus()
+        elif event.input.id == "files-new-name":
+            if self._create_mode == "touch":
+                self._do_touch()
+            else:
+                self._do_mkdir()
 
     def _cd_to(self, raw: str) -> None:
         target = Path(raw.strip()).expanduser()
@@ -126,63 +227,21 @@ class FilesApp(Vertical):
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         bid = event.button.id
-        status = self.query_one("#files-status", Static)
-
         if bid == "files-go":
             self._cd_to(self.query_one("#files-cd-input", Input).value)
         elif bid == "files-up":
-            self.current_dir = self.current_dir.parent
-            self._refresh_listing()
+            self.action_go_up()
         elif bid == "files-home":
-            self.current_dir = Path.home()
-            self._refresh_listing()
+            self.action_go_home()
         elif bid == "files-cd-exit":
-            if hasattr(self.app, "exit_with_cd"):
-                self.app.exit_with_cd(self.current_dir)  # type: ignore[attr-defined]
-            else:
-                self.app.exit(str(self.current_dir))
+            self.action_cd_and_exit()
         elif bid == "files-mkdir":
-            name = self.query_one("#files-new-name", Input).value.strip()
-            if not name:
-                status.update("Enter a directory name first")
-                return
-            try:
-                new_dir = self.current_dir / name
-                new_dir.mkdir(parents=True, exist_ok=True)
-                self.query_one("#files-new-name", Input).value = ""
-                self._refresh_listing()
-                status.update(f"Created directory: {new_dir.name}")
-            except Exception as exc:
-                status.update(f"mkdir error: {exc}")
+            self._do_mkdir()
         elif bid == "files-touch":
-            name = self.query_one("#files-new-name", Input).value.strip()
-            if not name:
-                status.update("Enter a file name first")
-                return
-            try:
-                new_file = self.current_dir / name
-                new_file.parent.mkdir(parents=True, exist_ok=True)
-                new_file.touch(exist_ok=True)
-                self.query_one("#files-new-name", Input).value = ""
-                self._refresh_listing()
-                status.update(f"Created file: {new_file.name}")
-            except Exception as exc:
-                status.update(f"touch error: {exc}")
+            self._do_touch()
         elif bid == "files-open-sel":
             entry = self._get_selected_entry()
             if entry is not None:
                 self._open_entry(entry)
         elif bid == "files-del-sel":
-            entry = self._get_selected_entry()
-            if entry is None:
-                status.update("No item selected")
-                return
-            try:
-                if entry.is_dir():
-                    shutil.rmtree(entry)
-                else:
-                    entry.unlink()
-                self._refresh_listing()
-                status.update(f"Deleted: {entry.name}")
-            except Exception as exc:
-                status.update(f"Delete error: {exc}")
+            self.action_delete_selected()

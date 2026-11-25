@@ -1,4 +1,4 @@
-"""Clice Slides — Terminal PowerPoint with Present Mode & .pptx/.json/.md support."""
+"""Clice Slides — Keyboard-First Terminal PowerPoint with Present Mode & .pptx support."""
 
 from __future__ import annotations
 
@@ -18,8 +18,8 @@ class PresentScreen(Screen[None]):
     """Full-screen PowerPoint-style Presentation Mode."""
 
     BINDINGS = [
-        Binding("right,space,enter,n", "next_slide", "Next Slide"),
-        Binding("left,p", "prev_slide", "Prev Slide"),
+        Binding("right,space,enter,n,down", "next_slide", "Next Slide"),
+        Binding("left,p,up,backspace", "prev_slide", "Prev Slide"),
         Binding("escape,q", "exit_present", "Exit Present Mode"),
     ]
 
@@ -40,7 +40,7 @@ class PresentScreen(Screen[None]):
 
     def _render_slide(self) -> None:
         s = self.slides[self.index]
-        self.query_one("#present-title", Static).update(f"📽️  {s.title}")
+        self.query_one("#present-title", Static).update(f"[P]  {s.title}")
         self.query_one("#present-body", Markdown).update(s.body or "_(empty slide)_")
         self.query_one("#present-footer", Static).update(
             f"Slide {self.index + 1} / {len(self.slides)}   •   "
@@ -62,7 +62,15 @@ class PresentScreen(Screen[None]):
 
 
 class SlidesApp(Vertical):
-    """Presentation editor with live slide preview, Present Mode, and .pptx I/O."""
+    """Presentation editor with PowerPoint shortcuts (Ctrl+M new slide, Alt+P present, Ctrl+S save)."""
+
+    BINDINGS = [
+        Binding("ctrl+m", "add_slide", "New Slide"),
+        Binding("alt+p", "present_mode", "Present"),
+        Binding("ctrl+s", "save_deck", "Save"),
+        Binding("alt+up", "prev_slide", "Prev Slide"),
+        Binding("alt+down", "next_slide", "Next Slide"),
+    ]
 
     def __init__(self, initial_file: Path | None = None) -> None:
         super().__init__()
@@ -70,13 +78,13 @@ class SlidesApp(Vertical):
         self.slides: list[SlideData] = [
             SlideData(
                 title="Welcome to Clice Slides",
-                body="- Build presentations right in your terminal\n- Export to real Microsoft PowerPoint (`.pptx`)\n- Press **▶ Present** for full-screen slideshow mode!",
+                body="- Build presentations right in your terminal\n- Export to real Microsoft PowerPoint (`.pptx`)\n- Press **Alt+P** (or click Present) for full-screen slideshow!",
                 notes="Introduce Clice Slides.",
             ),
             SlideData(
-                title="Why Terminal Office?",
-                body="1. Lightning fast & keyboard friendly\n2. Works over SSH, macOS, Linux & Windows\n3. Colorful GUI-like experience with mouse support",
-                notes="Highlight cross-platform benefits.",
+                title="PowerPoint Shortcuts",
+                body="- `Ctrl+M` — Add a new slide\n- `Alt+P` — Launch Present Mode\n- `Alt+Up` / `Alt+Down` — Switch slides\n- `Ctrl+S` — Save `.pptx` / `.json` / `.md`",
+                notes="Highlight keyboard-first workflow.",
             ),
         ]
         self.current_index = 0
@@ -88,17 +96,17 @@ class SlidesApp(Vertical):
 
     def compose(self) -> ComposeResult:
         with Horizontal(classes="toolbar"):
-            yield Static("[b #f97316]📽️ Clice Slides[/b #f97316]", classes="app-title")
+            yield Static("[b #f97316][P] Clice Slides[/b #f97316]", classes="app-title")
             yield Input(
                 value=str(self.current_file) if self.current_file else "deck.pptx",
                 placeholder="Path (.pptx, .json, .md)",
                 id="slides-path",
             )
             yield Button("Open", id="slides-open")
-            yield Button("Save", variant="primary", id="slides-save")
-            yield Button("+ Slide", variant="success", id="slides-add")
+            yield Button("Save (^S)", variant="primary", id="slides-save")
+            yield Button("+ Slide (^M)", variant="success", id="slides-add")
             yield Button("- Slide", variant="error", id="slides-del")
-            yield Button("▶ Present", variant="warning", id="slides-present")
+            yield Button("▶ Present (Alt+P)", variant="warning", id="slides-present")
 
         with Horizontal(id="slides-split"):
             yield ListView(id="slides-list")
@@ -111,11 +119,16 @@ class SlidesApp(Vertical):
                 yield Static("", id="slide-preview-title")
                 yield Markdown("", id="slide-preview-body")
 
-        yield Static("Ready • Click ▶ Present to launch full-screen slideshow", id="slides-status", classes="status-strip")
+        yield Static(
+            "Ctrl+M: New Slide  •  Alt+P: Present Mode  •  Alt+↑/↓: Switch Slides  •  Ctrl+S: Save",
+            id="slides-status",
+            classes="status-strip",
+        )
 
     def on_mount(self) -> None:
         self._refresh_list()
         self._load_slide_into_editor(0)
+        self.query_one("#slides-list", ListView).focus()
 
     def _refresh_list(self) -> None:
         lv = self.query_one("#slides-list", ListView)
@@ -149,6 +162,38 @@ class SlidesApp(Vertical):
             self.slides[self.current_index].body = event.text_area.text
             self._update_preview()
 
+    def action_add_slide(self) -> None:
+        self.slides.append(SlideData(title=f"Slide {len(self.slides) + 1}", body="- New bullet point"))
+        self._refresh_list()
+        self._load_slide_into_editor(len(self.slides) - 1)
+        self.query_one("#slides-status", Static).update(f"Added Slide {len(self.slides)}")
+
+    def action_prev_slide(self) -> None:
+        if self.current_index > 0:
+            self._load_slide_into_editor(self.current_index - 1)
+
+    def action_next_slide(self) -> None:
+        if self.current_index < len(self.slides) - 1:
+            self._load_slide_into_editor(self.current_index + 1)
+
+    def action_present_mode(self) -> None:
+        self.app.push_screen(PresentScreen(self.slides, self.current_index))
+
+    def action_save_deck(self) -> None:
+        status = self.query_one("#slides-status", Static)
+        raw = self.query_one("#slides-path", Input).value.strip()
+        if not raw:
+            status.update("Enter a file path (.pptx, .json, .md)")
+            return
+        try:
+            p = Path(raw).expanduser()
+            save_presentation(p, self.slides)
+            self.current_file = p
+            add_recent_file(p, "slides")
+            status.update(f"Saved {len(self.slides)} slides to {p}")
+        except Exception as exc:
+            status.update(f"Save error: {exc}")
+
     def open_file(self, path: Path) -> None:
         self.slides = load_presentation(path)
         self.current_file = path
@@ -162,10 +207,7 @@ class SlidesApp(Vertical):
         bid = event.button.id
         status = self.query_one("#slides-status", Static)
         if bid == "slides-add":
-            self.slides.append(SlideData(title=f"Slide {len(self.slides) + 1}", body="- New bullet point"))
-            self._refresh_list()
-            self._load_slide_into_editor(len(self.slides) - 1)
-            status.update(f"Added Slide {len(self.slides)}")
+            self.action_add_slide()
         elif bid == "slides-del":
             if len(self.slides) <= 1:
                 status.update("Cannot delete the last slide")
@@ -175,7 +217,7 @@ class SlidesApp(Vertical):
             self._load_slide_into_editor(max(0, self.current_index - 1))
             status.update("Deleted slide")
         elif bid == "slides-present":
-            self.app.push_screen(PresentScreen(self.slides, self.current_index))
+            self.action_present_mode()
         elif bid == "slides-open":
             raw = self.query_one("#slides-path", Input).value.strip()
             if not raw:
@@ -186,15 +228,4 @@ class SlidesApp(Vertical):
             except Exception as exc:
                 status.update(f"Open error: {exc}")
         elif bid == "slides-save":
-            raw = self.query_one("#slides-path", Input).value.strip()
-            if not raw:
-                status.update("Enter a file path (.pptx, .json, .md)")
-                return
-            try:
-                p = Path(raw).expanduser()
-                save_presentation(p, self.slides)
-                self.current_file = p
-                add_recent_file(p, "slides")
-                status.update(f"Saved {len(self.slides)} slides to {p}")
-            except Exception as exc:
-                status.update(f"Save error: {exc}")
+            self.action_save_deck()

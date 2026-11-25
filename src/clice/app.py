@@ -1,4 +1,4 @@
-"""Main Clice Textual Desktop Shell — Top Ribbon, Left App Dock, Workspace, Themes & Plugins."""
+"""Main Clice Textual Desktop Shell — Keyboard-First Navigation, Crisp Icons, Themes & Plugins."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from pathlib import Path
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
-from textual.widgets import Button, Footer, Static
+from textual.widgets import Button, Footer, ListItem, ListView, Static
 
 from clice import __version__
 from clice.apps.calc import CalcApp
@@ -24,52 +24,41 @@ from clice.apps.sysmon import SysMonApp
 from clice.core.plugins import PluginRegistry
 from clice.theme import AVAILABLE_THEMES, CLICE_CSS
 
-NAV_SECTIONS: list[tuple[str, list[tuple[str, str]]]] = [
-    (
-        "OFFICE SUITE",
-        [
-            ("home", "🏠 Home"),
-            ("sheets", "📊 Sheets (Excel)"),
-            ("docs", "📝 Docs (Word)"),
-            ("slides", "📽️ Slides (PPT)"),
-        ],
-    ),
-    (
-        "WORKSPACE & DEV",
-        [
-            ("files", "📁 Files & cd"),
-            ("devtools", "💻 Coding Utils"),
-            ("calc", "🧮 Calculator"),
-            ("notes", "✅ Notes & Tasks"),
-            ("calendar", "📅 Calendar"),
-            ("sysmon", "🖥️ SysMon"),
-        ],
-    ),
-    (
-        "EXTENSIONS",
-        [
-            ("plugins", "🧩 Plugins"),
-        ],
-    ),
+BUILTIN_NAV: list[tuple[str, str, str, str]] = [
+    ("home", "[b #38bdf8][H][/b #38bdf8]", "Home", "F1"),
+    ("sheets", "[b #22c55e][X][/b #22c55e]", "Sheets (Excel)", "F2"),
+    ("docs", "[b #3b82f6][W][/b #3b82f6]", "Docs (Word)", "F3"),
+    ("slides", "[b #f97316][P][/b #f97316]", "Slides (PPT)", "F4"),
+    ("files", "[b #eab308][F][/b #eab308]", "Files & cd", "F5"),
+    ("devtools", "[b #a855f7][<>][/b #a855f7]", "Coding Utils", "F6"),
+    ("calc", "[b #06b6d4][=][/b #06b6d4]", "Calculator", "F7"),
+    ("notes", "[b #ec4899][✓][/b #ec4899]", "Notes & Tasks", "F8"),
+    ("calendar", "[b #14b8a6][#][/b #14b8a6]", "Calendar", "F9"),
+    ("sysmon", "[b #ef4444][~][/b #ef4444]", "SysMon", ""),
+    ("plugins", "[b #8b5cf6][+][/b #8b5cf6]", "Plugins", ""),
 ]
 
 
 class CliceApp(App[str | None]):
-    """Clice — Colorful GUI-like Terminal Office Suite & Developer Multitool."""
+    """Clice — Keyboard-First, Colorful GUI-like Terminal Office Suite & Dev Multitool."""
 
     TITLE = f"Clice v{__version__}"
-    SUB_TITLE = "Terminal Office & Dev Suite"
+    SUB_TITLE = "Keyboard-First Terminal Office & Dev Suite"
     CSS = CLICE_CSS
 
     BINDINGS = [
         Binding("ctrl+q", "quit", "Quit"),
+        Binding("ctrl+b", "focus_sidebar", "Sidebar"),
+        Binding("ctrl+t", "cycle_theme", "Theme"),
         Binding("f1", "go_app('home')", "Home"),
         Binding("f2", "go_app('sheets')", "Sheets"),
         Binding("f3", "go_app('docs')", "Docs"),
         Binding("f4", "go_app('slides')", "Slides"),
         Binding("f5", "go_app('files')", "Files"),
-        Binding("f6", "go_app('devtools')", "DevTools"),
-        Binding("ctrl+t", "cycle_theme", "Theme"),
+        Binding("f6", "go_app('devtools')", "Dev"),
+        Binding("f7", "go_app('calc')", "Calc"),
+        Binding("f8", "go_app('notes')", "Notes"),
+        Binding("f9", "go_app('calendar')", "Cal"),
     ]
 
     def __init__(
@@ -86,53 +75,56 @@ class CliceApp(App[str | None]):
         self.cd_file = cd_file
         self.current_app_id = initial_app
         self._theme_idx = 0
+        self._nav_ids: list[str] = []
         self.plugin_registry = PluginRegistry()
         self.plugin_registry.discover(self.extra_plugin_dirs)
 
     def compose(self) -> ComposeResult:
         with Horizontal(id="top-bar"):
-            yield Static(f"✨ CLICE v{__version__}", id="brand-badge")
-            yield Static(f"📂 {Path.cwd()}", id="top-cwd")
+            yield Static(f"◆ CLICE v{__version__}", id="brand-badge")
+            yield Static(f"▸ {Path.cwd()}", id="top-cwd")
             with Horizontal(id="top-actions"):
-                yield Button("🎨 Theme", id="top-theme")
-                yield Button("🏠 Home", id="top-home")
-                yield Button("✖ Quit", variant="error", id="top-quit")
+                yield Button("Sidebar (^B)", id="top-sidebar")
+                yield Button("Theme (^T)", id="top-theme")
+                yield Button("Quit (^Q)", variant="error", id="top-quit")
 
         with Horizontal(id="main-shell"):
             with Vertical(id="sidebar"):
-                for section_title, items in NAV_SECTIONS:
-                    yield Static(section_title, classes="sidebar-section")
-                    for app_id, label in items:
-                        yield Button(label, id=f"nav-{app_id}", classes="nav-btn")
-                yield Vertical(id="plugin-nav-container")
-
+                yield Static("APPS (↑↓ Enter)", classes="sidebar-section")
+                yield ListView(id="sidebar-list")
             yield Vertical(id="workspace")
 
         yield Footer()
 
     def on_mount(self) -> None:
         self.theme = AVAILABLE_THEMES[self._theme_idx]
-        self._populate_plugin_nav()
+        self._populate_sidebar()
         if self.initial_file and self.initial_file.exists():
             self.open_file_in_appropriate_app(self.initial_file)
         else:
             self.switch_app(self.initial_app)
 
-    def _populate_plugin_nav(self) -> None:
-        container = self.query_one("#plugin-nav-container", Vertical)
-        container.remove_children()
-        if self.plugin_registry.loaded:
-            container.mount(Static("INSTALLED PLUGINS", classes="sidebar-section"))
-            for lp in self.plugin_registry.loaded:
-                p = lp.plugin
-                container.mount(Button(f"{p.icon} {p.name}", id=f"nav-{p.id}", classes="nav-btn"))
+    def _populate_sidebar(self) -> None:
+        lv = self.query_one("#sidebar-list", ListView)
+        lv.clear()
+        self._nav_ids = []
+
+        for app_id, icon, label, key in BUILTIN_NAV:
+            self._nav_ids.append(app_id)
+            hint = f" [dim]{key}[/dim]" if key else ""
+            lv.append(ListItem(Static(f"{icon} {label}{hint}")))
+
+        for lp in self.plugin_registry.loaded:
+            p = lp.plugin
+            self._nav_ids.append(p.id)
+            lv.append(ListItem(Static(f"[b #c084fc]{p.icon}[/b #c084fc] {p.name}")))
 
     def reload_plugins(self) -> None:
         self.plugin_registry.discover(self.extra_plugin_dirs)
-        self._populate_plugin_nav()
+        self._populate_sidebar()
 
     def update_cwd_display(self, path: Path) -> None:
-        self.query_one("#top-cwd", Static).update(f"📂 {path}")
+        self.query_one("#top-cwd", Static).update(f"▸ {path}")
 
     def exit_with_cd(self, target_dir: Path) -> None:
         if self.cd_file is not None:
@@ -148,19 +140,17 @@ class CliceApp(App[str | None]):
             self.switch_app("sheets", file_path=path)
         elif ext in (".docx", ".md", ".txt"):
             self.switch_app("docs", file_path=path)
-        elif ext in (".pptx", ".json"):
-            self.switch_app("slides" if ext == ".pptx" else "devtools", file_path=path)
+        elif ext == ".pptx":
+            self.switch_app("slides", file_path=path)
         else:
             self.switch_app("devtools", file_path=path)
 
     def switch_app(self, app_id: str, file_path: Path | None = None) -> None:
         self.current_app_id = app_id
 
-        # Highlight active sidebar button
-        for btn in self.query(".nav-btn"):
-            btn.remove_class("-active")
-            if btn.id == f"nav-{app_id}":
-                btn.add_class("-active")
+        lv = self.query_one("#sidebar-list", ListView)
+        if app_id in self._nav_ids:
+            lv.index = self._nav_ids.index(app_id)
 
         workspace = self.query_one("#workspace", Vertical)
         workspace.remove_children()
@@ -199,6 +189,15 @@ class CliceApp(App[str | None]):
 
         workspace.mount(widget)
 
+    def on_list_view_selected(self, event: ListView.Selected) -> None:
+        if event.list_view.id == "sidebar-list" and event.list_view.index is not None:
+            idx = event.list_view.index
+            if 0 <= idx < len(self._nav_ids):
+                self.switch_app(self._nav_ids[idx])
+
+    def action_focus_sidebar(self) -> None:
+        self.query_one("#sidebar-list", ListView).focus()
+
     def action_go_app(self, app_id: str) -> None:
         self.switch_app(app_id)
 
@@ -211,9 +210,7 @@ class CliceApp(App[str | None]):
         bid = event.button.id or ""
         if bid == "top-theme":
             self.action_cycle_theme()
-        elif bid == "top-home":
-            self.switch_app("home")
+        elif bid == "top-sidebar":
+            self.action_focus_sidebar()
         elif bid == "top-quit":
             self.exit()
-        elif bid.startswith("nav-"):
-            self.switch_app(bid[4:])
